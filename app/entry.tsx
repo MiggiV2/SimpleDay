@@ -103,6 +103,10 @@ export default function EntryScreen() {
                 const diaryDir = new Directory(Paths.document, 'diary');
                 const file = new File(diaryDir, params.filename as string);
                 await file.delete();
+                
+                // Sync deletion to WebDAV
+                webdavService.syncAfterDelete(params.filename as string);
+                
                 router.back();
               }
             } catch (error) {

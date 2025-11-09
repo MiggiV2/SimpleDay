@@ -1,10 +1,11 @@
 import { storage } from './storage';
+import { crypto } from './crypto';
 import { Paths, Directory, File } from 'expo-file-system';
 
 export interface WebDAVConfig {
   url: string;
   username: string;
-  password: string;
+  password: string; // Stored encrypted
   enabled: boolean;
 }
 
@@ -32,7 +33,9 @@ class WebDAVService {
   }
 
   private getAuthHeader(config: WebDAVConfig): string {
-    return 'Basic ' + btoa(config.username + ':' + config.password);
+    // Decrypt password for authentication
+    const plainPassword = config.password ? crypto.decrypt(config.password) : '';
+    return 'Basic ' + btoa(config.username + ':' + plainPassword);
   }
 
   async uploadFile(filename: string): Promise<boolean> {
@@ -71,13 +74,62 @@ class WebDAVService {
     }
   }
 
+  async deleteFile(filename: string): Promise<boolean> {
+    const config = await this.getConfig();
+    if (!config) return false;
+
+    try {
+      const deleteUrl = config.url.endsWith('/') ? config.url + filename : `${config.url}/${filename}`;
+
+      const response = await fetch(deleteUrl, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': this.getAuthHeader(config),
+        },
+      });
+
+      if (!response.ok && response.status !== 204 && response.status !== 404) {
+        throw new Error(`Delete failed: ${response.status}`);
+      }
+
+      return true;
+    } catch (error) {
+      console.error(`Error deleting file ${filename}:`, error);
+      return false;
+    }
+  }
+
   async syncAfterSave(filename: string): Promise<void> {
     const configured = await this.isConfigured();
     if (!configured) return;
 
     // Sync in background
-    this.uploadFile(filename).catch(error => {
+    this.uploadFile(filename).then(success => {
+      if (success) {
+        // Update last sync time
+        storage.setItem('last_sync_time', new Date().toISOString()).catch(error => {
+          console.error('Failed to update sync time:', error);
+        });
+      }
+    }).catch(error => {
       console.error('Background sync failed:', error);
+    });
+  }
+
+  async syncAfterDelete(filename: string): Promise<void> {
+    const configured = await this.isConfigured();
+    if (!configured) return;
+
+    // Delete from WebDAV in background
+    this.deleteFile(filename).then(success => {
+      if (success) {
+        // Update last sync time
+        storage.setItem('last_sync_time', new Date().toISOString()).catch(error => {
+          console.error('Failed to update sync time:', error);
+        });
+      }
+    }).catch(error => {
+      console.error('Background delete failed:', error);
     });
   }
 

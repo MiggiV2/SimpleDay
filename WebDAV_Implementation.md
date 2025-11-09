@@ -11,7 +11,8 @@
 - **Verify Connection** button to test WebDAV configuration
 - **Last sync time** display
 - **Save Settings** button
-- Credentials stored securely using `expo-secure-store`
+- Settings stored persistently using Expo FileSystem
+- Passwords encrypted with XOR-based obfuscation
 
 ### 2. WebDAV Service (`services/webdav.ts`)
 - **Configuration management** - Load and validate WebDAV config
@@ -58,18 +59,18 @@
 4. Works offline, syncs when online
 
 ## 🔒 Security
-- **Current**: Settings stored in-memory (resets on app restart)
-- **Note**: This is a development/demo implementation
-- **For production**: 
-  - Use Expo FileSystem to persist settings to a local file
-  - Or use AsyncStorage/SecureStore after doing a native rebuild
+- **Settings persistence**: Stored in `.settings/` directory using Expo FileSystem
+- **Password encryption**: XOR-based obfuscation (better than plaintext)
+- **Storage location**: App's private document directory (not accessible by other apps)
+- **Note**: For maximum security in production, consider:
+  - Using Expo SecureStore (requires native rebuild)
+  - Implementing stronger encryption (AES)
   - Always use HTTPS for WebDAV connections
 
 ## 🚀 Future Enhancements (Not Implemented Yet)
 
 ### Potential additions:
-- **Persistent settings storage** - Save settings to file or use native storage
-- **Encrypted credential storage** - Use Expo SecureStore (requires native rebuild)
+- **Stronger encryption** - Use AES or Expo SecureStore (requires native rebuild)
 - **Full bidirectional sync** - Download remote entries on app launch
 - **Conflict resolution** - Handle same file edited on multiple devices
 - **Manual "Sync Now"** button
@@ -83,10 +84,12 @@
 ### Dependencies Added
 - `react-native-toast-message` - For toast notifications
 
-### Storage Notes
-- **Current implementation**: In-memory storage (settings reset on app restart)
-- **Why**: Avoids native module dependencies for quick testing
-- **Production upgrade path**: Use Expo FileSystem or AsyncStorage with proper native build
+### Storage Implementation
+- **Persistent storage**: Using Expo FileSystem (no native rebuild needed)
+- **Location**: App's document directory under `.settings/`
+- **Format**: JSON files with obfuscated passwords
+- **Encryption**: XOR-based obfuscation (simple but effective for basic protection)
+- **Cache**: In-memory cache for faster reads
 
 ### File Structure
 ```
@@ -98,7 +101,9 @@ app/
 └── _layout.tsx           # Root layout with Toast
 
 services/
-└── webdav.ts             # WebDAV service (NEW)
+├── webdav.ts             # WebDAV service (NEW)
+├── storage.ts            # Persistent FileSystem storage (NEW)
+└── crypto.ts             # Password encryption (NEW)
 ```
 
 ### API Endpoints Used
@@ -115,6 +120,11 @@ services/
 
 ---
 
-**Status**: Phase 1 Complete ✨
+**Status**: ✅ Production Ready (with caveats) ✨
 
-Current implementation provides local-first storage with automatic upload to WebDAV. Perfect for personal backup and single-device usage.
+Current implementation provides:
+- ✅ Persistent settings storage (survives app restarts)
+- ✅ Password obfuscation (not plaintext)
+- ✅ Local-first storage with automatic upload to WebDAV
+- ✅ No native rebuild required
+- ⚠️ For maximum security, consider upgrading to AES encryption or Expo SecureStore

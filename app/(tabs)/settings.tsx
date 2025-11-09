@@ -1,9 +1,12 @@
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { storage } from '../../services/storage';
+import { crypto } from '../../services/crypto';
 import Toast from 'react-native-toast-message';
+import { useCallback } from 'react';
 
 interface WebDAVConfig {
   url: string;
@@ -26,6 +29,19 @@ export default function SettingsScreen() {
     loadSettings();
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      // Reload sync time when screen comes into focus
+      const reloadSyncTime = async () => {
+        const lastSync = await storage.getItem('last_sync_time');
+        if (lastSync) {
+          setLastSyncTime(lastSync);
+        }
+      };
+      reloadSyncTime();
+    }, [])
+  );
+
   const loadSettings = async () => {
     try {
       const configStr = await storage.getItem('webdav_config');
@@ -33,7 +49,8 @@ export default function SettingsScreen() {
         const config: WebDAVConfig = JSON.parse(configStr);
         setUrl(config.url || '');
         setUsername(config.username || '');
-        setPassword(config.password || '');
+        // Decrypt password when loading
+        setPassword(config.password ? crypto.decrypt(config.password) : '');
         setEnabled(config.enabled || false);
       }
 
@@ -86,7 +103,8 @@ export default function SettingsScreen() {
       const config: WebDAVConfig = {
         url: url.trim(),
         username: username.trim(),
-        password: password,
+        // Encrypt password before saving
+        password: password ? crypto.encrypt(password) : '',
         enabled: enabled,
       };
 
