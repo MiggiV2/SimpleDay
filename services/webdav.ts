@@ -116,6 +116,128 @@ class WebDAVService {
     });
   }
 
+  async downloadFile(filename: string): Promise<boolean> {
+    const config = await this.getConfig();
+    if (!config) return false;
+
+    try {
+      const downloadUrl = config.url.endsWith('/') ? config.url + filename : `${config.url}/${filename}`;
+
+      const response = await fetch(downloadUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': this.getAuthHeader(config),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.status}`);
+      }
+
+      const content = await response.text();
+      
+      const diaryDir = new Directory(Paths.document, 'diary');
+      if (!(await diaryDir.exists)) {
+        await diaryDir.create();
+      }
+
+      const file = new File(diaryDir, filename);
+      await file.write(content);
+
+      return true;
+    } catch (error) {
+      console.error(`Error downloading file ${filename}:`, error);
+      return false;
+    }
+  }
+
+  async listRemoteFiles(): Promise<string[]> {
+    const config = await this.getConfig();
+    if (!config) return [];
+
+    try {
+      const response = await fetch(config.url, {
+        method: 'PROPFIND',
+        headers: {
+          'Authorization': this.getAuthHeader(config),
+          'Depth': '1',
+        },
+      });
+
+      if (!response.ok && response.status !== 207) {
+        throw new Error(`Failed to list files: ${response.status}`);
+      }
+
+      const text = await response.text();
+      
+      // Parse XML to extract .md file names
+      const fileMatches = text.match(/<d:href>([^<]+\.md)<\/d:href>/gi) || [];
+      const files = fileMatches.map(match => {
+        const href = match.replace(/<\/?d:href>/gi, '');
+        const parts = href.split('/');
+        return parts[parts.length - 1] || '';
+      }).filter(name => name.endsWith('.md'));
+
+      return files;
+    } catch (error) {
+      console.error('Error listing remote files:', error);
+      return [];
+    }
+  }
+
+  async importFromWebDAV(): Promise<{ success: boolean; imported: number; errors: string[] }> {
+    const config = await this.getConfig();
+    if (!config) {
+      return { success: false, imported: 0, errors: ['WebDAV not configured'] };
+    }
+
+    const result = { success: true, imported: 0, errors: [] as string[] };
+
+    try {
+      // List remote files
+      const remoteFiles = await this.listRemoteFiles();
+      
+      if (remoteFiles.length === 0) {
+        return { success: true, imported: 0, errors: ['No files found on WebDAV server'] };
+      }
+
+      // Get local files
+      const diaryDir = new Directory(Paths.document, 'diary');
+      if (!(await diaryDir.exists)) {
+        await diaryDir.create();
+      }
+
+      const localFiles = (await diaryDir.list())
+        .filter(f => f.name.endsWith('.md'))
+        .map(f => f.name);
+
+      // Download files that are remote but not local
+      for (const filename of remoteFiles) {
+        if (!localFiles.includes(filename)) {
+          const downloaded = await this.downloadFile(filename);
+          if (downloaded) {
+            result.imported++;
+          } else {
+            result.errors.push(`Failed to download ${filename}`);
+          }
+        }
+      }
+
+      // Update last sync time
+      if (result.imported > 0) {
+        await storage.setItem('last_sync_time', new Date().toISOString());
+      }
+
+      result.success = result.errors.length === 0;
+      return result;
+    } catch (error) {
+      console.error('Import error:', error);
+      result.success = false;
+      result.errors.push(error instanceof Error ? error.message : 'Unknown error');
+      return result;
+    }
+  }
+
   async syncAfterDelete(filename: string): Promise<void> {
     const configured = await this.isConfigured();
     if (!configured) return;
