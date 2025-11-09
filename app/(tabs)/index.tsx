@@ -36,7 +36,7 @@ export default function DiaryListScreen() {
           // Extract title from filename: DATE_title.md
           const parts = file.name.replace('.md', '').split('_');
           const date = parts[0];
-          const title = parts.slice(1).join('_') || 'Untitled';
+          const title = parts.slice(1).join('_').replace(/_/g, ' ') || 'Untitled';
           
           // Get preview (first 100 chars of content)
           const preview = content.substring(0, 100).replace(/[#*_`]/g, '').trim();

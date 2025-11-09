@@ -5,6 +5,7 @@ import { Paths, Directory, File } from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 import Markdown from 'react-native-markdown-display';
 import Toast from 'react-native-toast-message';
+import { webdavService } from '../services/webdav';
 
 export default function EntryScreen() {
   const params = useLocalSearchParams();
@@ -35,7 +36,7 @@ export default function EntryScreen() {
         
         // Extract title from filename
         const parts = (params.filename as string).replace('.md', '').split('_');
-        setTitle(parts.slice(1).join('_') || 'Untitled');
+        setTitle(parts.slice(1).join('_').replace(/_/g, ' ') || 'Untitled');
       }
     } catch (error) {
       console.error('Error loading entry:', error);
@@ -69,6 +70,9 @@ export default function EntryScreen() {
 
       const file = new File(diaryDir, filename);
       await file.write(content);
+      
+      // Sync to WebDAV in background
+      webdavService.syncAfterSave(filename);
       
       Toast.show({
         type: 'success',
