@@ -1,98 +1,187 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { StyleSheet, FlatList, TouchableOpacity, View, Text, Alert } from 'react-native';
+import { useState, useCallback } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { Paths, Directory, File } from 'expo-file-system';
+import { Ionicons } from '@expo/vector-icons';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+interface DiaryEntry {
+  filename: string;
+  date: string;
+  title: string;
+  preview: string;
+}
 
-export default function HomeScreen() {
+export default function DiaryListScreen() {
+  const [entries, setEntries] = useState<DiaryEntry[]>([]);
+  const router = useRouter();
+
+  const loadEntries = async () => {
+    try {
+      const diaryDir = new Directory(Paths.document, 'diary');
+      
+      if (!(await diaryDir.exists)) {
+        await diaryDir.create();
+        setEntries([]);
+        return;
+      }
+
+      const files = await diaryDir.list();
+      const mdFiles = files.filter(f => f.name.endsWith('.md'));
+      
+      const entriesData = await Promise.all(
+        mdFiles.map(async (file) => {
+          const fileObj = new File(diaryDir, file.name);
+          const content = await fileObj.text();
+          
+          // Extract title from filename: DATE_title.md
+          const parts = file.name.replace('.md', '').split('_');
+          const date = parts[0];
+          const title = parts.slice(1).join('_') || 'Untitled';
+          
+          // Get preview (first 100 chars of content)
+          const preview = content.substring(0, 100).replace(/[#*_`]/g, '').trim();
+          
+          return { filename: file.name, date, title, preview };
+        })
+      );
+
+      // Sort by date descending
+      entriesData.sort((a, b) => b.date.localeCompare(a.date));
+      setEntries(entriesData);
+    } catch (error) {
+      console.error('Error loading entries:', error);
+      Alert.alert('Error', 'Failed to load diary entries');
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadEntries();
+    }, [])
+  );
+
+  const createNewEntry = () => {
+    const today = new Date().toISOString().split('T')[0];
+    router.push(`/entry?date=${today}&new=true`);
+  };
+
+  const openEntry = (entry: DiaryEntry) => {
+    router.push(`/entry?filename=${entry.filename}`);
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>SimpleDay</Text>
+        <TouchableOpacity style={styles.addButton} onPress={createNewEntry}>
+          <Ionicons name="add-circle" size={36} color="#007AFF" />
+        </TouchableOpacity>
+      </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      {entries.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="book-outline" size={64} color="#ccc" />
+          <Text style={styles.emptyText}>No entries yet</Text>
+          <Text style={styles.emptySubtext}>Tap + to create your first entry</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={entries}
+          keyExtractor={(item) => item.filename}
+          renderItem={({ item }) => (
+            <TouchableOpacity style={styles.entryCard} onPress={() => openEntry(item)}>
+              <Text style={styles.entryDate}>{formatDate(item.date)}</Text>
+              <Text style={styles.entryTitle}>{item.title}</Text>
+              <Text style={styles.entryPreview} numberOfLines={2}>
+                {item.preview}
+              </Text>
+            </TouchableOpacity>
+          )}
+          contentContainerStyle={styles.listContent}
+        />
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
   },
-  stepContainer: {
-    gap: 8,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 60,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  addButton: {
+    padding: 5,
+  },
+  listContent: {
+    padding: 16,
+  },
+  entryCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  entryDate: {
+    fontSize: 12,
+    color: '#999',
+    marginBottom: 4,
+  },
+  entryTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  entryPreview: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  emptyText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#999',
+    marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#bbb',
+    marginTop: 8,
   },
 });
