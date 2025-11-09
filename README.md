@@ -204,20 +204,6 @@ SimpleDay/
 
 ---
 
-## 🚧 Roadmap
-
-- [ ] End-to-end encryption for WebDAV sync
-- [ ] Multiple entries per day
-- [ ] Search functionality
-- [ ] Tags and categories
-- [ ] Export to PDF
-- [ ] Dark mode
-- [ ] Image attachments
-- [ ] Calendar view
-- [ ] Reminders/Notifications
-
----
-
 ## 🤝 Contributing
 
 Contributions are welcome! Here's how you can help:
@@ -248,13 +234,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Inspired by the simplicity of journaling with pen and paper
 - Built with love for the privacy-conscious community
 - Thanks to all contributors and users!
-
----
-
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/yourusername/simpleday/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/simpleday/discussions)
 
 ---
 
