@@ -129,6 +129,83 @@ export default function SettingsScreen() {
     return date.toLocaleString();
   };
 
+  const handleWipeLocalEntries = () => {
+    Alert.alert(
+      '⚠️ WARNING: Dangerous Action',
+      'This will PERMANENTLY DELETE all local diary entries from your device.\n\n' +
+      '✓ WebDAV entries will NOT be affected\n' +
+      '✓ You can re-import them later\n\n' +
+      'Are you absolutely sure?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Yes, Delete All',
+          style: 'destructive',
+          onPress: () => showFinalConfirmation()
+        }
+      ]
+    );
+  };
+
+  const showFinalConfirmation = () => {
+    Alert.alert(
+      '⚠️⚠️⚠️ FINAL WARNING ⚠️⚠️⚠️',
+      'This is your LAST CHANCE to cancel.\n\n' +
+      'All local entries will be PERMANENTLY deleted.\n\n' +
+      'This action CANNOT be undone!',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'DELETE EVERYTHING',
+          style: 'destructive',
+          onPress: () => wipeLocalEntries()
+        }
+      ]
+    );
+  };
+
+  const wipeLocalEntries = async () => {
+    try {
+      const { Paths, Directory } = await import('expo-file-system');
+      const diaryDir = new Directory(Paths.document, 'diary');
+      
+      if (!(await diaryDir.exists)) {
+        Alert.alert('Info', 'No local entries found.');
+        return;
+      }
+
+      const files = await diaryDir.list();
+      const mdFiles = files.filter(f => f.name.endsWith('.md'));
+      
+      if (mdFiles.length === 0) {
+        Alert.alert('Info', 'No local entries found.');
+        return;
+      }
+
+      // Delete all .md files
+      for (const file of mdFiles) {
+        const { File } = await import('expo-file-system');
+        const fileObj = new File(diaryDir, file.name);
+        await fileObj.delete();
+      }
+
+      Alert.alert(
+        'Success',
+        `${mdFiles.length} ${mdFiles.length === 1 ? 'entry' : 'entries'} deleted from local storage.\n\nYou can re-import from WebDAV if needed.`,
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Error wiping entries:', error);
+      Alert.alert('Error', 'Failed to delete local entries. Please try again.');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -220,12 +297,6 @@ export default function SettingsScreen() {
           )}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About</Text>
-          <Text style={styles.aboutText}>SimpleDay v1.0.0</Text>
-          <Text style={styles.aboutText}>A minimalistic diary app with Markdown support</Text>
-        </View>
-
         <TouchableOpacity
           style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
           onPress={saveSettings}
@@ -237,6 +308,26 @@ export default function SettingsScreen() {
             <Text style={styles.saveButtonText}>Save Settings</Text>
           )}
         </TouchableOpacity>
+
+        <View style={styles.dangerSection}>
+          <Text style={styles.dangerSectionTitle}>Danger Zone</Text>
+          <TouchableOpacity
+            style={styles.dangerButton}
+            onPress={handleWipeLocalEntries}
+          >
+            <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+            <Text style={styles.dangerButtonText}>Wipe All Local Entries</Text>
+          </TouchableOpacity>
+          <Text style={styles.dangerWarning}>
+            ⚠️ This will permanently delete all local entries. WebDAV entries will NOT be affected.
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>About</Text>
+          <Text style={styles.aboutText}>SimpleDay v1.0.0</Text>
+          <Text style={styles.aboutText}>A minimalistic diary app with Markdown support</Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -373,6 +464,43 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  dangerSection: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#FF3B30',
+  },
+  dangerSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FF3B30',
+    marginBottom: 12,
+  },
+  dangerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#FF3B30',
+    borderRadius: 8,
+    padding: 12,
+    gap: 8,
+    marginBottom: 12,
+  },
+  dangerButtonText: {
+    color: '#FF3B30',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  dangerWarning: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
 });
 

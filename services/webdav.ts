@@ -190,7 +190,9 @@ class WebDAVService {
     }
   }
 
-  async importFromWebDAV(): Promise<{ success: boolean; imported: number; errors: string[] }> {
+  async importFromWebDAV(
+    onProgress?: (current: number, total: number, filename: string) => void
+  ): Promise<{ success: boolean; imported: number; errors: string[] }> {
     const config = await this.getConfig();
     if (!config) {
       return { success: false, imported: 0, errors: ['WebDAV not configured'] };
@@ -216,15 +218,23 @@ class WebDAVService {
         .filter(f => f.name.endsWith('.md'))
         .map(f => f.name);
 
+      // Get files to download
+      const filesToDownload = remoteFiles.filter(f => !localFiles.includes(f));
+      const total = filesToDownload.length;
+
       // Download files that are remote but not local
-      for (const filename of remoteFiles) {
-        if (!localFiles.includes(filename)) {
-          const downloaded = await this.downloadFile(filename);
-          if (downloaded) {
-            result.imported++;
-          } else {
-            result.errors.push(`Failed to download ${filename}`);
-          }
+      for (let i = 0; i < filesToDownload.length; i++) {
+        const filename = filesToDownload[i];
+        
+        if (onProgress) {
+          onProgress(i + 1, total, filename);
+        }
+        
+        const downloaded = await this.downloadFile(filename);
+        if (downloaded) {
+          result.imported++;
+        } else {
+          result.errors.push(`Failed to download ${filename}`);
         }
       }
 
