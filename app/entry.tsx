@@ -57,7 +57,7 @@ export default function EntryScreen() {
       }
 
       const date = params.date || (params.filename as string).split('_')[0];
-      const sanitizedTitle = title.trim().replace(/[^a-zA-Z0-9]/g, '_') || 'untitled';
+      const sanitizedTitle = title.trim().replace(/[\/\\:*?"<>|]/g, '_') || 'untitled';
       const filename = `${date}_${sanitizedTitle}.md`;
 
       // If editing existing file with different title, delete old file
@@ -165,7 +165,7 @@ export default function EntryScreen() {
         </View>
       </View>
 
-      {isEditing && (
+      {isEditing ? (
         <View style={styles.titleContainer}>
           <TextInput
             style={styles.titleInput}
@@ -174,6 +174,10 @@ export default function EntryScreen() {
             onChangeText={setTitle}
             placeholderTextColor="#999"
           />
+        </View>
+      ) : (
+        <View style={styles.titleContainer}>
+          <Text style={styles.titleText}>{title}</Text>
         </View>
       )}
 
@@ -236,6 +240,11 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e0e0e0',
   },
   titleInput: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  titleText: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',

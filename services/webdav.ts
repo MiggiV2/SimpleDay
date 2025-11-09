@@ -52,7 +52,8 @@ class WebDAVService {
       }
 
       const content = await file.text();
-      const uploadUrl = config.url.endsWith('/') ? config.url + filename : `${config.url}/${filename}`;
+      const encodedFilename = encodeURIComponent(filename);
+      const uploadUrl = config.url.endsWith('/') ? config.url + encodedFilename : `${config.url}/${encodedFilename}`;
 
       const response = await fetch(uploadUrl, {
         method: 'PUT',
@@ -79,7 +80,8 @@ class WebDAVService {
     if (!config) return false;
 
     try {
-      const deleteUrl = config.url.endsWith('/') ? config.url + filename : `${config.url}/${filename}`;
+      const encodedFilename = encodeURIComponent(filename);
+      const deleteUrl = config.url.endsWith('/') ? config.url + encodedFilename : `${config.url}/${encodedFilename}`;
 
       const response = await fetch(deleteUrl, {
         method: 'DELETE',
@@ -121,7 +123,8 @@ class WebDAVService {
     if (!config) return false;
 
     try {
-      const downloadUrl = config.url.endsWith('/') ? config.url + filename : `${config.url}/${filename}`;
+      const encodedFilename = encodeURIComponent(filename);
+      const downloadUrl = config.url.endsWith('/') ? config.url + encodedFilename : `${config.url}/${encodedFilename}`;
 
       const response = await fetch(downloadUrl, {
         method: 'GET',
@@ -175,7 +178,9 @@ class WebDAVService {
       const files = fileMatches.map(match => {
         const href = match.replace(/<\/?d:href>/gi, '');
         const parts = href.split('/');
-        return parts[parts.length - 1] || '';
+        const encodedName = parts[parts.length - 1] || '';
+        // Decode URL-encoded filename
+        return decodeURIComponent(encodedName);
       }).filter(name => name.endsWith('.md'));
 
       return files;

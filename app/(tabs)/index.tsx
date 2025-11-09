@@ -1,5 +1,5 @@
 import { StyleSheet, FlatList, TouchableOpacity, View, Text, Alert, ActivityIndicator } from 'react-native';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Paths, Directory, File } from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,30 @@ interface DiaryEntry {
   title: string;
   preview: string;
 }
+
+// Memoized entry card component for better performance
+const EntryCard = memo(({ item, onPress }: { item: DiaryEntry; onPress: () => void }) => {
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
+  return (
+    <TouchableOpacity style={styles.entryCard} onPress={onPress}>
+      <Text style={styles.entryDate}>{formatDate(item.date)}</Text>
+      <Text style={styles.entryTitle}>{item.title}</Text>
+      <Text style={styles.entryPreview} numberOfLines={2}>
+        {item.preview}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+EntryCard.displayName = 'EntryCard';
 
 export default function DiaryListScreen() {
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
@@ -74,9 +98,13 @@ export default function DiaryListScreen() {
     router.push(`/entry?date=${today}&new=true`);
   };
 
-  const openEntry = (entry: DiaryEntry) => {
+  const openEntry = useCallback((entry: DiaryEntry) => {
     router.push(`/entry?filename=${entry.filename}`);
-  };
+  }, [router]);
+
+  const renderItem = useCallback(({ item }: { item: DiaryEntry }) => (
+    <EntryCard item={item} onPress={() => openEntry(item)} />
+  ), [openEntry]);
 
   const handleImport = async () => {
     setShowImportPrompt(false);
@@ -107,42 +135,34 @@ export default function DiaryListScreen() {
     try {
       const result = await webdavService.importFromWebDAV();
       
+      // Reload entries first
+      await loadEntries();
+      
       if (result.success && result.imported > 0) {
-        Toast.show({
-          type: 'success',
-          text1: 'Import successful!',
-          text2: `Imported ${result.imported} ${result.imported === 1 ? 'entry' : 'entries'}`,
-          position: 'bottom',
-        });
-        
-        // Reload entries
-        await loadEntries();
+        Alert.alert(
+          'Import Complete',
+          `Successfully imported ${result.imported} ${result.imported === 1 ? 'entry' : 'entries'} from WebDAV.`,
+          [{ text: 'OK' }]
+        );
       } else if (result.imported === 0) {
-        Toast.show({
-          type: 'info',
-          text1: 'No entries to import',
-          text2: 'No new entries found on WebDAV server',
-          position: 'bottom',
-        });
+        Alert.alert(
+          'Import Complete',
+          'No new entries found on WebDAV server. All entries are already up to date.',
+          [{ text: 'OK' }]
+        );
       } else {
-        Alert.alert('Import Errors', result.errors.join('\n'));
+        Alert.alert(
+          'Import Complete with Errors',
+          `Imported ${result.imported} ${result.imported === 1 ? 'entry' : 'entries'}.\n\nErrors:\n${result.errors.join('\n')}`,
+          [{ text: 'OK' }]
+        );
       }
     } catch (error) {
       console.error('Import error:', error);
-      Alert.alert('Error', 'Failed to import from WebDAV');
+      Alert.alert('Import Failed', 'Failed to import from WebDAV. Please check your connection and settings.');
     } finally {
       setIsImporting(false);
     }
-  };
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
   };
 
   return (
@@ -192,15 +212,12 @@ export default function DiaryListScreen() {
         <FlatList
           data={entries}
           keyExtractor={(item) => item.filename}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={styles.entryCard} onPress={() => openEntry(item)}>
-              <Text style={styles.entryDate}>{formatDate(item.date)}</Text>
-              <Text style={styles.entryTitle}>{item.title}</Text>
-              <Text style={styles.entryPreview} numberOfLines={2}>
-                {item.preview}
-              </Text>
-            </TouchableOpacity>
-          )}
+          renderItem={renderItem}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={15}
+          windowSize={10}
           contentContainerStyle={styles.listContent}
         />
       )}
