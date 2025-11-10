@@ -1,12 +1,14 @@
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { storage } from '../../services/storage';
 import { crypto } from '../../services/crypto';
+import { notificationService } from '../../services/notifications';
 import Toast from 'react-native-toast-message';
 import { useCallback } from 'react';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface WebDAVConfig {
   url: string;
@@ -24,6 +26,11 @@ export default function SettingsScreen() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  
+  // Notification settings
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [reminderTime, setReminderTime] = useState(new Date());
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -58,6 +65,13 @@ export default function SettingsScreen() {
       if (lastSync) {
         setLastSyncTime(lastSync);
       }
+
+      // Load notification settings
+      const notifSettings = await notificationService.loadSettings();
+      setNotificationsEnabled(notifSettings.enabled);
+      const time = new Date();
+      time.setHours(notifSettings.hour, notifSettings.minute, 0, 0);
+      setReminderTime(time);
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -109,6 +123,22 @@ export default function SettingsScreen() {
       };
 
       await storage.setItem('webdav_config', JSON.stringify(config));
+      
+      // Save notification settings
+      const notificationResult = await notificationService.saveSettings({
+        enabled: notificationsEnabled,
+        hour: reminderTime.getHours(),
+        minute: reminderTime.getMinutes(),
+      });
+
+      if (notificationsEnabled && !notificationResult) {
+        Alert.alert(
+          'Notification Permission Required',
+          'Please enable notifications in your device settings to receive daily reminders.',
+          [{ text: 'OK' }]
+        );
+        setNotificationsEnabled(false);
+      }
       
       Toast.show({
         type: 'success',
@@ -213,6 +243,57 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Daily Reminder</Text>
+          <Text style={styles.sectionDescription}>
+            Get a daily notification to remind you to write in your diary
+          </Text>
+
+          <View style={styles.toggleContainer}>
+            <Text style={styles.label}>Enable Daily Reminder</Text>
+            <TouchableOpacity
+              style={[styles.toggle, notificationsEnabled && styles.toggleActive]}
+              onPress={() => setNotificationsEnabled(!notificationsEnabled)}
+            >
+              <View style={[styles.toggleThumb, notificationsEnabled && styles.toggleThumbActive]} />
+            </TouchableOpacity>
+          </View>
+
+          {notificationsEnabled && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Reminder Time</Text>
+              <TouchableOpacity
+                style={styles.timePickerButton}
+                onPress={() => setShowTimePicker(true)}
+              >
+                <Ionicons name="time-outline" size={20} color="#007AFF" />
+                <Text style={styles.timePickerText}>
+                  {reminderTime.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: true 
+                  })}
+                </Text>
+              </TouchableOpacity>
+
+              {showTimePicker && (
+                <DateTimePicker
+                  value={reminderTime}
+                  mode="time"
+                  is24Hour={false}
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(event, selectedDate) => {
+                    setShowTimePicker(Platform.OS === 'ios');
+                    if (selectedDate) {
+                      setReminderTime(selectedDate);
+                    }
+                  }}
+                />
+              )}
+            </View>
+          )}
+        </View>
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>WebDAV Sync</Text>
           <Text style={styles.sectionDescription}>
@@ -431,6 +512,21 @@ const styles = StyleSheet.create({
   verifyButtonText: {
     color: '#007AFF',
     fontSize: 16,
+    fontWeight: '500',
+  },
+  timePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    gap: 8,
+  },
+  timePickerText: {
+    fontSize: 16,
+    color: '#007AFF',
     fontWeight: '500',
   },
   syncInfo: {

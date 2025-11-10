@@ -120,8 +120,11 @@ export default function EntryScreen() {
   };
 
   const getFormattedDate = () => {
-    const dateStr = params.date || (params.filename as string)?.split('_')[0];
-    const date = new Date(dateStr);
+    let dateStr = params.date as string;
+    if (!dateStr && params.filename) {
+      dateStr = (params.filename as string).split('_')[0];
+    }
+    const date = new Date(dateStr || new Date());
     return date.toLocaleDateString('en-US', { 
       weekday: 'long', 
       year: 'numeric', 
