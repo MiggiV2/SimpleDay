@@ -13,6 +13,7 @@
       "bundleIdentifier": "de.mymiggi.simpleday"
     },
     "android": {
+      "jsEngine": "hermes",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
