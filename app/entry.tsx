@@ -1,4 +1,4 @@
-import { StyleSheet, View, TextInput, TouchableOpacity, Alert, ScrollView, Text } from 'react-native';
+import { StyleSheet, View, TextInput, TouchableOpacity, Alert, ScrollView, Text, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Paths, Directory, File } from 'expo-file-system';
@@ -131,7 +131,11 @@ export default function EntryScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
+    >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
@@ -182,15 +186,21 @@ export default function EntryScreen() {
       )}
 
       {isEditing && !isPreview ? (
-        <TextInput
-          style={styles.textInput}
-          value={content}
-          onChangeText={setContent}
-          placeholder="Write your thoughts here... (Markdown supported)"
-          placeholderTextColor="#999"
-          multiline
-          textAlignVertical="top"
-        />
+        <ScrollView 
+          style={styles.scrollContainer}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <TextInput
+            style={styles.textInput}
+            value={content}
+            onChangeText={setContent}
+            placeholder="Write your thoughts here... (Markdown supported)"
+            placeholderTextColor="#999"
+            multiline
+            textAlignVertical="top"
+          />
+        </ScrollView>
       ) : (
         <ScrollView style={styles.previewContainer} contentContainerStyle={styles.previewContent}>
           {content ? (
@@ -200,7 +210,7 @@ export default function EntryScreen() {
           )}
         </ScrollView>
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -249,12 +259,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
   textInput: {
     flex: 1,
     padding: 16,
     fontSize: 16,
     color: '#333',
     lineHeight: 24,
+    minHeight: '100%',
   },
   previewContainer: {
     flex: 1,
