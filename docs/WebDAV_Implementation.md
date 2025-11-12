@@ -17,7 +17,11 @@
 ### 2. WebDAV Service (`services/webdav.ts`)
 - **Configuration management** - Load and validate WebDAV config
 - **File upload** - Upload diary entries to WebDAV server
+- **File download** - Download diary entries from WebDAV server
 - **Background sync** - Automatically sync after saving an entry
+- **Startup sync check** - Check sync status on app startup
+- **Sync status reporting** - Compare local and remote files
+- **Batch operations** - Upload all local files or download all remote files
 - **Authentication** - Basic auth support
 - **Error handling** - Graceful failures with console logging
 
@@ -43,6 +47,13 @@
    - App works normally with local storage only
    - No sync attempts made
 
+### Startup Sync Check
+1. On app startup (when sync is enabled):
+   - Compares local files with remote WebDAV files
+   - Detects files only on device or only on server
+   - Prompts user to sync if differences found
+   - Offers options: upload, download, or sync both ways
+
 ## 📱 User Flow
 
 ### Initial Setup
@@ -55,8 +66,10 @@
 ### Daily Usage
 1. Write diary entries as normal
 2. Save → Entry stored locally + synced to WebDAV automatically
-3. No user action required for sync
-4. Works offline, syncs when online
+3. On app startup → Automatic sync check shows if files are out of sync
+4. Choose sync direction if needed (upload, download, or both)
+5. No user action required for sync
+6. Works offline, syncs when online
 
 ## 🔒 Security
 - **Settings persistence**: Stored in `.settings/` directory using Expo FileSystem
@@ -71,13 +84,11 @@
 
 ### Potential additions:
 - **Stronger encryption** - Use AES or Expo SecureStore (requires native rebuild)
-- **Full bidirectional sync** - Download remote entries on app launch
 - **Conflict resolution** - Handle same file edited on multiple devices
-- **Manual "Sync Now"** button
 - **Sync status indicator** - Show if sync is in progress
 - **Auto-sync interval** - Periodic background sync (e.g., every 15 minutes)
 - **Sync history/logs** - View successful and failed syncs
-- **Pull-to-refresh** - Manually trigger download from WebDAV
+- **Pull-to-refresh** - Manually trigger sync check
 
 ## 📝 Technical Details
 
@@ -117,6 +128,8 @@ services/
 - ✅ Clean, minimal design matching app style
 - ✅ Last sync timestamp display
 - ✅ Non-blocking background sync
+- ✅ Startup sync check with smart prompts
+- ✅ Flexible sync options (upload, download, or both)
 
 ---
 
@@ -126,5 +139,7 @@ Current implementation provides:
 - ✅ Persistent settings storage (survives app restarts)
 - ✅ Password obfuscation (not plaintext)
 - ✅ Local-first storage with automatic upload to WebDAV
+- ✅ Startup sync check to detect out-of-sync files
+- ✅ Flexible sync options (upload, download, or bidirectional)
 - ✅ No native rebuild required
 - ⚠️ For maximum security, consider upgrading to AES encryption or Expo SecureStore

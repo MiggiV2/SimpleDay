@@ -42,6 +42,8 @@ export default function DiaryListScreen() {
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, filename: '' });
   const [showImportPrompt, setShowImportPrompt] = useState(false);
+  const [showSyncPrompt, setShowSyncPrompt] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<{ localOnly: number; remoteOnly: number } | null>(null);
   const router = useRouter();
 
   const loadEntries = async () => {
@@ -88,9 +90,29 @@ export default function DiaryListScreen() {
     }
   };
 
+  const checkSyncOnStartup = async () => {
+    const configured = await webdavService.isConfigured();
+    if (!configured) return;
+
+    try {
+      const status = await webdavService.checkSyncStatus();
+      
+      if (!status.inSync) {
+        setSyncStatus({
+          localOnly: status.localOnly.length,
+          remoteOnly: status.remoteOnly.length,
+        });
+        setShowSyncPrompt(true);
+      }
+    } catch (error) {
+      console.error('Error checking sync status:', error);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       loadEntries();
+      checkSyncOnStartup();
     }, [])
   );
 
@@ -159,6 +181,98 @@ export default function DiaryListScreen() {
     }
   };
 
+  const handleSyncUp = async () => {
+    setShowSyncPrompt(false);
+    setIsImporting(true);
+    
+    try {
+      const result = await webdavService.syncAllToWebDAV();
+      
+      if (result.success) {
+        Toast.show({
+          type: 'success',
+          text1: 'Sync Complete',
+          text2: `Uploaded ${result.uploaded} ${result.uploaded === 1 ? 'file' : 'files'} to WebDAV`,
+        });
+      } else {
+        Alert.alert(
+          'Sync Complete with Errors',
+          `Uploaded ${result.uploaded} files.\n\nErrors:\n${result.errors.join('\n')}`,
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
+      Alert.alert('Sync Failed', 'Failed to sync to WebDAV. Please check your connection and settings.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleSyncDown = async () => {
+    setShowSyncPrompt(false);
+    setIsImporting(true);
+    setImportProgress({ current: 0, total: 0, filename: '' });
+    
+    try {
+      const result = await webdavService.importFromWebDAV((current, total, filename) => {
+        setImportProgress({ current, total, filename });
+      });
+      
+      await loadEntries();
+      
+      if (result.success) {
+        Toast.show({
+          type: 'success',
+          text1: 'Sync Complete',
+          text2: `Downloaded ${result.imported} ${result.imported === 1 ? 'file' : 'files'} from WebDAV`,
+        });
+      } else if (result.errors.length > 0) {
+        Alert.alert(
+          'Sync Complete with Errors',
+          `Downloaded ${result.imported} files.\n\nErrors:\n${result.errors.join('\n')}`,
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
+      Alert.alert('Sync Failed', 'Failed to sync from WebDAV. Please check your connection and settings.');
+    } finally {
+      setIsImporting(false);
+      setImportProgress({ current: 0, total: 0, filename: '' });
+    }
+  };
+
+  const handleSyncBoth = async () => {
+    setShowSyncPrompt(false);
+    setIsImporting(true);
+    setImportProgress({ current: 0, total: 0, filename: '' });
+    
+    try {
+      // First upload local files
+      const uploadResult = await webdavService.syncAllToWebDAV();
+      
+      // Then download remote files
+      const downloadResult = await webdavService.importFromWebDAV((current, total, filename) => {
+        setImportProgress({ current, total, filename });
+      });
+      
+      await loadEntries();
+      
+      Toast.show({
+        type: 'success',
+        text1: 'Sync Complete',
+        text2: `Uploaded ${uploadResult.uploaded}, downloaded ${downloadResult.imported} files`,
+      });
+    } catch (error) {
+      console.error('Sync error:', error);
+      Alert.alert('Sync Failed', 'Failed to sync. Please check your connection and settings.');
+    } finally {
+      setIsImporting(false);
+      setImportProgress({ current: 0, total: 0, filename: '' });
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -221,6 +335,67 @@ export default function DiaryListScreen() {
           windowSize={10}
           contentContainerStyle={styles.listContent}
         />
+      )}
+      
+      {showSyncPrompt && syncStatus && (
+        <View style={styles.progressOverlay}>
+          <View style={styles.syncPromptCard}>
+            <Ionicons name="cloud-outline" size={64} color="#007AFF" />
+            <Text style={styles.syncPromptTitle}>Files Not in Sync</Text>
+            <Text style={styles.syncPromptMessage}>
+              {syncStatus.localOnly > 0 && `${syncStatus.localOnly} file${syncStatus.localOnly !== 1 ? 's' : ''} only on device`}
+              {syncStatus.localOnly > 0 && syncStatus.remoteOnly > 0 && '\n'}
+              {syncStatus.remoteOnly > 0 && `${syncStatus.remoteOnly} file${syncStatus.remoteOnly !== 1 ? 's' : ''} only on server`}
+            </Text>
+            <Text style={styles.syncPromptSubtext}>How would you like to sync?</Text>
+            
+            <View style={styles.syncButtonsContainer}>
+              {syncStatus.localOnly > 0 && (
+                <TouchableOpacity 
+                  style={styles.syncOptionButton} 
+                  onPress={handleSyncUp}
+                  disabled={isImporting}
+                >
+                  <Ionicons name="cloud-upload-outline" size={24} color="#007AFF" />
+                  <Text style={styles.syncOptionText}>Upload to Server</Text>
+                  <Text style={styles.syncOptionSubtext}>{syncStatus.localOnly} file{syncStatus.localOnly !== 1 ? 's' : ''}</Text>
+                </TouchableOpacity>
+              )}
+              
+              {syncStatus.remoteOnly > 0 && (
+                <TouchableOpacity 
+                  style={styles.syncOptionButton} 
+                  onPress={handleSyncDown}
+                  disabled={isImporting}
+                >
+                  <Ionicons name="cloud-download-outline" size={24} color="#007AFF" />
+                  <Text style={styles.syncOptionText}>Download to Device</Text>
+                  <Text style={styles.syncOptionSubtext}>{syncStatus.remoteOnly} file{syncStatus.remoteOnly !== 1 ? 's' : ''}</Text>
+                </TouchableOpacity>
+              )}
+              
+              {syncStatus.localOnly > 0 && syncStatus.remoteOnly > 0 && (
+                <TouchableOpacity 
+                  style={styles.syncOptionButton} 
+                  onPress={handleSyncBoth}
+                  disabled={isImporting}
+                >
+                  <Ionicons name="sync-outline" size={24} color="#007AFF" />
+                  <Text style={styles.syncOptionText}>Sync Both Ways</Text>
+                  <Text style={styles.syncOptionSubtext}>Upload & download</Text>
+                </TouchableOpacity>
+              )}
+              
+              <TouchableOpacity 
+                style={[styles.syncOptionButton, styles.syncCancelButton]} 
+                onPress={() => setShowSyncPrompt(false)}
+                disabled={isImporting}
+              >
+                <Text style={styles.syncCancelText}>Not Now</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       )}
       
       {isImporting && importProgress.total > 0 && (
@@ -471,5 +646,68 @@ const styles = StyleSheet.create({
     width: '100%',
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  syncPromptCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  syncPromptTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  syncPromptMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  syncPromptSubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginBottom: 24,
+  },
+  syncButtonsContainer: {
+    width: '100%',
+    gap: 12,
+  },
+  syncOptionButton: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  syncOptionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 8,
+  },
+  syncOptionSubtext: {
+    fontSize: 13,
+    color: '#999',
+    marginTop: 4,
+  },
+  syncCancelButton: {
+    backgroundColor: '#fff',
+    marginTop: 8,
+  },
+  syncCancelText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
   },
 });

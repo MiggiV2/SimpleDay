@@ -274,6 +274,97 @@ class WebDAVService {
     const config = await this.getConfig();
     return config !== null;
   }
+
+  async checkSyncStatus(): Promise<{
+    inSync: boolean;
+    localOnly: string[];
+    remoteOnly: string[];
+    total: { local: number; remote: number };
+  }> {
+    const result = {
+      inSync: true,
+      localOnly: [] as string[],
+      remoteOnly: [] as string[],
+      total: { local: 0, remote: 0 },
+    };
+
+    const config = await this.getConfig();
+    if (!config) {
+      return result;
+    }
+
+    try {
+      // Get local files
+      const diaryDir = new Directory(Paths.document, 'diary');
+      let localFiles: string[] = [];
+      
+      if (await diaryDir.exists) {
+        const files = await diaryDir.list();
+        localFiles = files
+          .filter(f => f.name.endsWith('.md'))
+          .map(f => f.name);
+      }
+
+      // Get remote files
+      const remoteFiles = await this.listRemoteFiles();
+
+      result.total.local = localFiles.length;
+      result.total.remote = remoteFiles.length;
+
+      // Find files only in local
+      result.localOnly = localFiles.filter(f => !remoteFiles.includes(f));
+
+      // Find files only in remote
+      result.remoteOnly = remoteFiles.filter(f => !localFiles.includes(f));
+
+      result.inSync = result.localOnly.length === 0 && result.remoteOnly.length === 0;
+
+      return result;
+    } catch (error) {
+      console.error('Error checking sync status:', error);
+      return result;
+    }
+  }
+
+  async syncAllToWebDAV(): Promise<{ success: boolean; uploaded: number; errors: string[] }> {
+    const config = await this.getConfig();
+    if (!config) {
+      return { success: false, uploaded: 0, errors: ['WebDAV not configured'] };
+    }
+
+    const result = { success: true, uploaded: 0, errors: [] as string[] };
+
+    try {
+      const diaryDir = new Directory(Paths.document, 'diary');
+      if (!(await diaryDir.exists)) {
+        return { success: true, uploaded: 0, errors: [] };
+      }
+
+      const files = await diaryDir.list();
+      const mdFiles = files.filter(f => f.name.endsWith('.md'));
+
+      for (const file of mdFiles) {
+        const uploaded = await this.uploadFile(file.name);
+        if (uploaded) {
+          result.uploaded++;
+        } else {
+          result.errors.push(`Failed to upload ${file.name}`);
+        }
+      }
+
+      if (result.uploaded > 0) {
+        await storage.setItem('last_sync_time', new Date().toISOString());
+      }
+
+      result.success = result.errors.length === 0;
+      return result;
+    } catch (error) {
+      console.error('Sync all error:', error);
+      result.success = false;
+      result.errors.push(error instanceof Error ? error.message : 'Unknown error');
+      return result;
+    }
+  }
 }
 
 export const webdavService = new WebDAVService();
