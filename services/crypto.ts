@@ -1,5 +1,5 @@
 import * as ExpoCrypto from 'expo-crypto';
-import { encrypt, decrypt } from 'react-native-aes-crypto';
+import CryptoJS from 'crypto-js';
 
 // Modern AES-256-CBC encryption for WebDAV backups
 // XOR-based obfuscation for local credentials storage
@@ -93,15 +93,20 @@ class CryptoService {
       const saltBytes = await ExpoCrypto.getRandomBytesAsync(16);
       const salt = this.arrayBufferToBase64(saltBytes);
 
-      // Use the encryption key directly (it's already 256-bit)
-      const key = encryptionKey;
+      // Convert base64 key and IV to WordArray for CryptoJS
+      const keyWordArray = CryptoJS.enc.Base64.parse(encryptionKey);
+      const ivWordArray = CryptoJS.enc.Base64.parse(iv);
 
       // Encrypt using AES-256-CBC
-      const encrypted = await encrypt(plaintext, key, iv, 'aes-256-cbc');
+      const encrypted = CryptoJS.AES.encrypt(plaintext, keyWordArray, {
+        iv: ivWordArray,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+      });
 
       // Combine salt + iv + encrypted data (all base64)
       // Format: salt:iv:ciphertext
-      return `${salt}:${iv}:${encrypted}`;
+      return `${salt}:${iv}:${encrypted.toString()}`;
     } catch (error) {
       console.error('Encryption error:', error);
       throw new Error('Failed to encrypt content');
@@ -123,12 +128,19 @@ class CryptoService {
       }
 
       const [salt, iv, encrypted] = parts;
-      const key = encryptionKey;
+
+      // Convert base64 key and IV to WordArray for CryptoJS
+      const keyWordArray = CryptoJS.enc.Base64.parse(encryptionKey);
+      const ivWordArray = CryptoJS.enc.Base64.parse(iv);
 
       // Decrypt using AES-256-CBC
-      const decrypted = await decrypt(encrypted, key, iv, 'aes-256-cbc');
+      const decrypted = CryptoJS.AES.decrypt(encrypted, keyWordArray, {
+        iv: ivWordArray,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+      });
 
-      return decrypted;
+      return decrypted.toString(CryptoJS.enc.Utf8);
     } catch (error) {
       console.error('Decryption error:', error);
       throw new Error('Failed to decrypt content. Wrong encryption key?');

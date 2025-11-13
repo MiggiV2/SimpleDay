@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, TextInput } from 'react-native';
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from './Button';
@@ -22,6 +22,8 @@ export function EncryptionKeyManager({
   const [showKey, setShowKey] = useState(false);
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [generatedKey, setGeneratedKey] = useState('');
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importedKey, setImportedKey] = useState('');
 
   const handleToggle = (newValue: boolean) => {
     if (newValue && !encryptionKey) {
@@ -71,6 +73,49 @@ export function EncryptionKeyManager({
     onToggle(true);
     setShowKeyModal(false);
     setGeneratedKey('');
+  };
+
+  const handleImportKey = () => {
+    setShowImportModal(true);
+  };
+
+  const handleConfirmImport = () => {
+    const trimmedKey = importedKey.trim();
+    
+    // Basic validation - check if it looks like a base64 string
+    if (!trimmedKey) {
+      Alert.alert('Invalid Key', 'Please enter an encryption key');
+      return;
+    }
+    
+    // Check if it's valid base64 (basic check)
+    try {
+      atob(trimmedKey);
+      if (trimmedKey.length < 32) {
+        throw new Error('Key too short');
+      }
+    } catch (error) {
+      Alert.alert('Invalid Key', 'The encryption key format is invalid. Please make sure you copied the complete key.');
+      return;
+    }
+
+    onKeyGenerated(trimmedKey);
+    onToggle(true);
+    setShowImportModal(false);
+    setImportedKey('');
+    
+    Alert.alert('Success', 'Encryption key imported successfully');
+  };
+
+  const pasteFromClipboard = async () => {
+    try {
+      const text = await Clipboard.getStringAsync();
+      if (text) {
+        setImportedKey(text);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to paste from clipboard');
+    }
   };
 
   const copyToClipboard = async (text: string) => {
@@ -132,13 +177,22 @@ export function EncryptionKeyManager({
       )}
 
       {!encryptionKey && (
-        <Button
-          title="Generate Encryption Key"
-          onPress={handleGenerateKey}
-          icon="key-outline"
-          variant="outline"
-          style={styles.generateButton}
-        />
+        <View style={styles.keyActions}>
+          <Button
+            title="Generate New Key"
+            onPress={handleGenerateKey}
+            icon="key-outline"
+            variant="outline"
+            style={styles.actionButton}
+          />
+          <Button
+            title="Import Existing Key"
+            onPress={handleImportKey}
+            icon="download-outline"
+            variant="outline"
+            style={styles.actionButton}
+          />
+        </View>
       )}
 
       {/* Key Generation Modal */}
@@ -187,6 +241,66 @@ export function EncryptionKeyManager({
               <Button
                 title="I've Saved It"
                 onPress={handleConfirmKey}
+                style={styles.modalActionButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Import Key Modal */}
+      <Modal
+        visible={showImportModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowImportModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Ionicons name="download" size={48} color="#007AFF" />
+            <Text style={styles.modalTitle}>Import Encryption Key</Text>
+            <Text style={styles.modalDescription}>
+              Enter your existing encryption key to restore access to your encrypted backups.
+            </Text>
+
+            <View style={styles.importInputContainer}>
+              <TextInput
+                style={styles.importInput}
+                value={importedKey}
+                onChangeText={setImportedKey}
+                placeholder="Paste your encryption key here"
+                placeholderTextColor="#999"
+                multiline
+                numberOfLines={3}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TouchableOpacity 
+                onPress={pasteFromClipboard}
+                style={styles.pasteButton}
+              >
+                <Ionicons name="clipboard-outline" size={20} color="#007AFF" />
+                <Text style={styles.pasteButtonText}>Paste</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalWarning}>
+              ⚠️ Make sure this is the same key used to encrypt your backups.
+            </Text>
+
+            <View style={styles.modalActions}>
+              <Button
+                title="Cancel"
+                onPress={() => {
+                  setShowImportModal(false);
+                  setImportedKey('');
+                }}
+                variant="secondary"
+                style={styles.modalActionButton}
+              />
+              <Button
+                title="Import Key"
+                onPress={handleConfirmImport}
                 style={styles.modalActionButton}
               />
             </View>
@@ -250,6 +364,13 @@ const styles = StyleSheet.create({
     color: '#FF6B00',
     marginTop: 8,
     fontStyle: 'italic',
+  },
+  keyActions: {
+    marginTop: 16,
+    gap: 12,
+  },
+  actionButton: {
+    width: '100%',
   },
   generateButton: {
     marginTop: 16,
@@ -316,5 +437,35 @@ const styles = StyleSheet.create({
   },
   modalActionButton: {
     flex: 1,
+  },
+  importInputContainer: {
+    width: '100%',
+    marginBottom: 16,
+  },
+  importInput: {
+    width: '100%',
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    fontSize: 12,
+    fontFamily: 'monospace',
+    color: '#333',
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  pasteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    padding: 8,
+    gap: 6,
+  },
+  pasteButtonText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '500',
   },
 });
