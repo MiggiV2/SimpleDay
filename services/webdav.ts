@@ -5,8 +5,10 @@ import { Paths, Directory, File } from 'expo-file-system';
 export interface WebDAVConfig {
   url: string;
   username: string;
-  password: string; // Stored encrypted
+  password: string; // Stored encrypted (XOR obfuscation)
   enabled: boolean;
+  encryptionEnabled: boolean;
+  encryptionKey?: string; // AES-256 key (base64-encoded)
 }
 
 export interface SyncResult {
@@ -51,7 +53,22 @@ class WebDAVService {
         return false;
       }
 
-      const content = await file.text();
+      let content = await file.text();
+      let contentType = 'text/markdown';
+      
+      // Encrypt content if encryption is enabled
+      if (config.encryptionEnabled && config.encryptionKey) {
+        try {
+          content = await crypto.encryptContent(content, config.encryptionKey);
+          contentType = 'application/octet-stream';
+          // Add .enc extension to encrypted files
+          filename = filename.endsWith('.enc') ? filename : filename + '.enc';
+        } catch (error) {
+          console.error('Encryption failed:', error);
+          return false;
+        }
+      }
+
       const encodedFilename = encodeURIComponent(filename);
       const uploadUrl = config.url.endsWith('/') ? config.url + encodedFilename : `${config.url}/${encodedFilename}`;
 
@@ -59,7 +76,7 @@ class WebDAVService {
         method: 'PUT',
         headers: {
           'Authorization': this.getAuthHeader(config),
-          'Content-Type': 'text/markdown',
+          'Content-Type': contentType,
         },
         body: content,
       });
@@ -123,7 +140,13 @@ class WebDAVService {
     if (!config) return false;
 
     try {
-      const encodedFilename = encodeURIComponent(filename);
+      // Check if we should look for encrypted version
+      let downloadFilename = filename;
+      if (config.encryptionEnabled && !filename.endsWith('.enc')) {
+        downloadFilename = filename + '.enc';
+      }
+
+      const encodedFilename = encodeURIComponent(downloadFilename);
       const downloadUrl = config.url.endsWith('/') ? config.url + encodedFilename : `${config.url}/${encodedFilename}`;
 
       const response = await fetch(downloadUrl, {
@@ -137,14 +160,26 @@ class WebDAVService {
         throw new Error(`Download failed: ${response.status}`);
       }
 
-      const content = await response.text();
+      let content = await response.text();
+      
+      // Decrypt content if encryption is enabled
+      if (config.encryptionEnabled && config.encryptionKey) {
+        try {
+          content = await crypto.decryptContent(content, config.encryptionKey);
+        } catch (error) {
+          console.error('Decryption failed:', error);
+          throw new Error('Failed to decrypt file. Wrong encryption key?');
+        }
+      }
       
       const diaryDir = new Directory(Paths.document, 'diary');
       if (!(await diaryDir.exists)) {
         await diaryDir.create();
       }
 
-      const file = new File(diaryDir, filename);
+      // Save with original filename (without .enc)
+      const saveFilename = filename.endsWith('.enc') ? filename.slice(0, -4) : filename;
+      const file = new File(diaryDir, saveFilename);
       await file.write(content);
 
       return true;
@@ -173,14 +208,22 @@ class WebDAVService {
 
       const text = await response.text();
       
-      // Parse XML to extract .md file names
-      const fileMatches = text.match(/<d:href>([^<]+\.md)<\/d:href>/gi) || [];
+      // Parse XML to extract file names (.md or .md.enc)
+      const filePattern = config.encryptionEnabled 
+        ? /<d:href>([^<]+\.md\.enc)<\/d:href>/gi 
+        : /<d:href>([^<]+\.md)<\/d:href>/gi;
+      
+      const fileMatches = text.match(filePattern) || [];
       const files = fileMatches.map(match => {
         const href = match.replace(/<\/?d:href>/gi, '');
         const parts = href.split('/');
         const encodedName = parts[parts.length - 1] || '';
-        // Decode URL-encoded filename
-        return decodeURIComponent(encodedName);
+        // Decode URL-encoded filename and remove .enc extension if present
+        let filename = decodeURIComponent(encodedName);
+        if (config.encryptionEnabled && filename.endsWith('.enc')) {
+          filename = filename.slice(0, -4);
+        }
+        return filename;
       }).filter(name => name.endsWith('.md'));
 
       return files;
