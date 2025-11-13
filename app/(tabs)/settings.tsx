@@ -1,14 +1,16 @@
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Platform } from 'react-native';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { storage } from '../../services/storage';
 import { crypto } from '../../services/crypto';
 import { notificationService } from '../../services/notifications';
 import Toast from 'react-native-toast-message';
-import { useCallback } from 'react';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Header } from '../../components/Header';
+import { Toggle } from '../../components/Toggle';
+import { Input } from '../../components/Input';
+import { Button } from '../../components/Button';
 
 interface WebDAVConfig {
   url: string;
@@ -18,7 +20,6 @@ interface WebDAVConfig {
 }
 
 export default function SettingsScreen() {
-  const router = useRouter();
   const [url, setUrl] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -238,9 +239,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Settings</Text>
-      </View>
+      <Header title="Settings" />
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         <View style={styles.section}>
@@ -249,15 +248,11 @@ export default function SettingsScreen() {
             Get a daily notification to remind you to write in your diary
           </Text>
 
-          <View style={styles.toggleContainer}>
-            <Text style={styles.label}>Enable Daily Reminder</Text>
-            <TouchableOpacity
-              style={[styles.toggle, notificationsEnabled && styles.toggleActive]}
-              onPress={() => setNotificationsEnabled(!notificationsEnabled)}
-            >
-              <View style={[styles.toggleThumb, notificationsEnabled && styles.toggleThumbActive]} />
-            </TouchableOpacity>
-          </View>
+          <Toggle
+            label="Enable Daily Reminder"
+            value={notificationsEnabled}
+            onToggle={setNotificationsEnabled}
+          />
 
           {notificationsEnabled && (
             <View style={styles.inputGroup}>
@@ -300,73 +295,51 @@ export default function SettingsScreen() {
             Sync your diary entries with a WebDAV server for backup and cross-device access
           </Text>
 
-          <View style={styles.toggleContainer}>
-            <Text style={styles.label}>Enable WebDAV Sync</Text>
-            <TouchableOpacity
-              style={[styles.toggle, enabled && styles.toggleActive]}
-              onPress={() => setEnabled(!enabled)}
-            >
-              <View style={[styles.toggleThumb, enabled && styles.toggleThumbActive]} />
-            </TouchableOpacity>
-          </View>
+          <Toggle
+            label="Enable WebDAV Sync"
+            value={enabled}
+            onToggle={setEnabled}
+          />
 
           {enabled && (
             <>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>WebDAV URL</Text>
-                <TextInput
-                  style={styles.input}
-                  value={url}
-                  onChangeText={setUrl}
-                  placeholder="https://your-server.com/webdav"
-                  placeholderTextColor="#999"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="url"
-                />
-              </View>
+              <Input
+                label="WebDAV URL"
+                value={url}
+                onChangeText={setUrl}
+                placeholder="https://your-server.com/webdav"
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+              />
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Username</Text>
-                <TextInput
-                  style={styles.input}
-                  value={username}
-                  onChangeText={setUsername}
-                  placeholder="username"
-                  placeholderTextColor="#999"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
+              <Input
+                label="Username"
+                value={username}
+                onChangeText={setUsername}
+                placeholder="username"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Password</Text>
-                <TextInput
-                  style={styles.input}
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="password"
-                  placeholderTextColor="#999"
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
+              <Input
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="password"
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
 
-              <TouchableOpacity
-                style={styles.verifyButton}
+              <Button
+                title="Verify Connection"
                 onPress={verifyConnection}
-                disabled={isVerifying}
-              >
-                {isVerifying ? (
-                  <ActivityIndicator color="#007AFF" />
-                ) : (
-                  <>
-                    <Ionicons name="checkmark-circle-outline" size={20} color="#007AFF" />
-                    <Text style={styles.verifyButtonText}>Verify Connection</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+                variant="outline"
+                icon="checkmark-circle-outline"
+                loading={isVerifying}
+                style={styles.verifyButton}
+              />
 
               <View style={styles.syncInfo}>
                 <Ionicons name="time-outline" size={16} color="#666" />
@@ -378,27 +351,20 @@ export default function SettingsScreen() {
           )}
         </View>
 
-        <TouchableOpacity
-          style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+        <Button
+          title="Save Settings"
           onPress={saveSettings}
-          disabled={isSaving}
-        >
-          {isSaving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.saveButtonText}>Save Settings</Text>
-          )}
-        </TouchableOpacity>
+          loading={isSaving}
+        />
 
         <View style={styles.dangerSection}>
           <Text style={styles.dangerSectionTitle}>Danger Zone</Text>
-          <TouchableOpacity
-            style={styles.dangerButton}
+          <Button
+            title="Wipe All Local Entries"
             onPress={handleWipeLocalEntries}
-          >
-            <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-            <Text style={styles.dangerButtonText}>Wipe All Local Entries</Text>
-          </TouchableOpacity>
+            variant="danger"
+            icon="trash-outline"
+          />
           <Text style={styles.dangerWarning}>
             ⚠️ This will permanently delete all local entries. WebDAV entries will NOT be affected.
           </Text>
@@ -406,7 +372,7 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About</Text>
-          <Text style={styles.aboutText}>SimpleDay v1.0.0</Text>
+          <Text style={styles.aboutText}>SimpleDay v1.1.0</Text>
           <Text style={styles.aboutText}>A minimalistic diary app with Markdown support</Text>
         </View>
       </ScrollView>
@@ -418,18 +384,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-  },
-  header: {
-    padding: 20,
-    paddingTop: 60,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333',
   },
   content: {
     flex: 1,
@@ -455,31 +409,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     lineHeight: 20,
   },
-  toggleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  toggle: {
-    width: 51,
-    height: 31,
-    borderRadius: 16,
-    backgroundColor: '#ddd',
-    padding: 2,
-  },
-  toggleActive: {
-    backgroundColor: '#34C759',
-  },
-  toggleThumb: {
-    width: 27,
-    height: 27,
-    borderRadius: 14,
-    backgroundColor: '#fff',
-  },
-  toggleThumbActive: {
-    transform: [{ translateX: 20 }],
-  },
   inputGroup: {
     marginBottom: 16,
   },
@@ -489,30 +418,8 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 8,
   },
-  input: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#333',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
   verifyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    gap: 8,
     marginBottom: 16,
-  },
-  verifyButtonText: {
-    color: '#007AFF',
-    fontSize: 16,
-    fontWeight: '500',
   },
   timePickerButton: {
     flexDirection: 'row',
@@ -546,25 +453,11 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 4,
   },
-  saveButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  saveButtonDisabled: {
-    opacity: 0.6,
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   dangerSection: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
+    marginTop: 16,
     marginBottom: 16,
     borderWidth: 2,
     borderColor: '#FF3B30',
@@ -575,28 +468,12 @@ const styles = StyleSheet.create({
     color: '#FF3B30',
     marginBottom: 12,
   },
-  dangerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#FF3B30',
-    borderRadius: 8,
-    padding: 12,
-    gap: 8,
-    marginBottom: 12,
-  },
-  dangerButtonText: {
-    color: '#FF3B30',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   dangerWarning: {
     fontSize: 12,
     color: '#666',
     fontStyle: 'italic',
     textAlign: 'center',
+    marginTop: 12,
   },
 });
 
