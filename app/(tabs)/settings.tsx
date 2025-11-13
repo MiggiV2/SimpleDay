@@ -11,12 +11,15 @@ import { Header } from '../../components/Header';
 import { Toggle } from '../../components/Toggle';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
+import { EncryptionKeyManager } from '../../components/EncryptionKeyManager';
 
 interface WebDAVConfig {
   url: string;
   username: string;
   password: string;
   enabled: boolean;
+  encryptionEnabled: boolean;
+  encryptionKey?: string;
 }
 
 export default function SettingsScreen() {
@@ -24,6 +27,8 @@ export default function SettingsScreen() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [enabled, setEnabled] = useState(false);
+  const [encryptionEnabled, setEncryptionEnabled] = useState(false);
+  const [encryptionKey, setEncryptionKey] = useState<string | undefined>();
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
@@ -60,6 +65,8 @@ export default function SettingsScreen() {
         // Decrypt password when loading
         setPassword(config.password ? crypto.decrypt(config.password) : '');
         setEnabled(config.enabled || false);
+        setEncryptionEnabled(config.encryptionEnabled || false);
+        setEncryptionKey(config.encryptionKey);
       }
 
       const lastSync = await storage.getItem('last_sync_time');
@@ -121,6 +128,8 @@ export default function SettingsScreen() {
         // Encrypt password before saving
         password: password ? crypto.encrypt(password) : '',
         enabled: enabled,
+        encryptionEnabled: encryptionEnabled,
+        encryptionKey: encryptionKey,
       };
 
       await storage.setItem('webdav_config', JSON.stringify(config));
@@ -339,6 +348,13 @@ export default function SettingsScreen() {
                 icon="checkmark-circle-outline"
                 loading={isVerifying}
                 style={styles.verifyButton}
+              />
+
+              <EncryptionKeyManager
+                enabled={encryptionEnabled}
+                encryptionKey={encryptionKey}
+                onToggle={setEncryptionEnabled}
+                onKeyGenerated={setEncryptionKey}
               />
 
               <View style={styles.syncInfo}>
