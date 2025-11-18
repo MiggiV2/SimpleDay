@@ -97,6 +97,11 @@ class WebDAVService {
     if (!config) return false;
 
     try {
+      // Add .enc extension if encryption is enabled
+      if (config.encryptionEnabled && !filename.endsWith('.enc')) {
+        filename = filename + '.enc';
+      }
+
       const encodedFilename = encodeURIComponent(filename);
       const deleteUrl = config.url.endsWith('/') ? config.url + encodedFilename : `${config.url}/${encodedFilename}`;
 
@@ -383,15 +388,20 @@ class WebDAVService {
         return { success: true, uploaded: 0, errors: [] };
       }
 
-      const files = await diaryDir.list();
-      const mdFiles = files.filter(f => f.name.endsWith('.md'));
+      // Get list of files that need to be uploaded (only local files not on remote)
+      const syncStatus = await this.checkSyncStatus();
+      const filesToUpload = syncStatus.localOnly;
 
-      for (const file of mdFiles) {
-        const uploaded = await this.uploadFile(file.name);
+      if (filesToUpload.length === 0) {
+        return { success: true, uploaded: 0, errors: [] };
+      }
+
+      for (const filename of filesToUpload) {
+        const uploaded = await this.uploadFile(filename);
         if (uploaded) {
           result.uploaded++;
         } else {
-          result.errors.push(`Failed to upload ${file.name}`);
+          result.errors.push(`Failed to upload ${filename}`);
         }
       }
 

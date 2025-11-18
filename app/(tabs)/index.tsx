@@ -1,5 +1,5 @@
 import { StyleSheet, FlatList, TouchableOpacity, View, Text, Alert } from 'react-native';
-import { useState, useCallback, memo } from 'react';
+import { useState, useCallback, memo, useEffect, useRef } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Paths, Directory, File } from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
@@ -48,6 +48,7 @@ export default function DiaryListScreen() {
   const [showImportPrompt, setShowImportPrompt] = useState(false);
   const [showSyncPrompt, setShowSyncPrompt] = useState(false);
   const [syncStatus, setSyncStatus] = useState<{ localOnly: number; remoteOnly: number } | null>(null);
+  const hasCheckedSyncOnStartup = useRef(false);
   const router = useRouter();
 
   const loadEntries = async () => {
@@ -113,10 +114,18 @@ export default function DiaryListScreen() {
     }
   };
 
+  // Run sync check only once on component mount
+  useEffect(() => {
+    if (!hasCheckedSyncOnStartup.current) {
+      hasCheckedSyncOnStartup.current = true;
+      checkSyncOnStartup();
+    }
+  }, []);
+
+  // Reload entries when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       loadEntries();
-      checkSyncOnStartup();
     }, [])
   );
 
