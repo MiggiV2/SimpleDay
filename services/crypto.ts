@@ -1,19 +1,96 @@
 import * as ExpoCrypto from 'expo-crypto';
+import * as SecureStore from 'expo-secure-store';
 import CryptoJS from 'crypto-js';
 
 // Modern AES-256-CBC encryption for WebDAV backups
-// XOR-based obfuscation for local credentials storage
+// Secure storage using platform keystore (iOS Keychain, Android Keystore)
 
 class CryptoService {
-  // Static key for local credentials obfuscation (not for WebDAV encryption)
-  private credentialKey: string;
+  // Legacy XOR key for backward compatibility (migration only)
+  private readonly LEGACY_CREDENTIAL_KEY = 'SimpleDay-2024-Secure-Key-XOR';
+  
+  // Secure storage keys
+  private readonly WEBDAV_PASSWORD_KEY = 'webdav_password_secure';
+  private readonly ENCRYPTION_KEY_KEY = 'encryption_key_secure';
 
-  constructor() {
-    this.credentialKey = 'SimpleDay-2024-Secure-Key-XOR';
+  // ===== Secure Credential Storage =====
+  
+  /**
+   * Store WebDAV password securely in platform keystore
+   */
+  async storePassword(password: string): Promise<void> {
+    try {
+      await SecureStore.setItemAsync(this.WEBDAV_PASSWORD_KEY, password);
+    } catch (error) {
+      console.error('Error storing password:', error);
+      throw new Error('Failed to securely store password');
+    }
   }
 
-  // ===== Credential Obfuscation (for local password storage) =====
+  /**
+   * Retrieve WebDAV password from secure storage
+   */
+  async getPassword(): Promise<string | null> {
+    try {
+      return await SecureStore.getItemAsync(this.WEBDAV_PASSWORD_KEY);
+    } catch (error) {
+      console.error('Error retrieving password:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Delete WebDAV password from secure storage
+   */
+  async deletePassword(): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(this.WEBDAV_PASSWORD_KEY);
+    } catch (error) {
+      console.error('Error deleting password:', error);
+    }
+  }
+
+  /**
+   * Store encryption key securely in platform keystore
+   */
+  async storeEncryptionKey(key: string): Promise<void> {
+    try {
+      await SecureStore.setItemAsync(this.ENCRYPTION_KEY_KEY, key);
+    } catch (error) {
+      console.error('Error storing encryption key:', error);
+      throw new Error('Failed to securely store encryption key');
+    }
+  }
+
+  /**
+   * Retrieve encryption key from secure storage
+   */
+  async getEncryptionKey(): Promise<string | null> {
+    try {
+      return await SecureStore.getItemAsync(this.ENCRYPTION_KEY_KEY);
+    } catch (error) {
+      console.error('Error retrieving encryption key:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Delete encryption key from secure storage
+   */
+  async deleteEncryptionKey(): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(this.ENCRYPTION_KEY_KEY);
+    } catch (error) {
+      console.error('Error deleting encryption key:', error);
+    }
+  }
+
+  // ===== Legacy Migration Support =====
   
+  /**
+   * Migrate from legacy XOR obfuscation to secure storage
+   * @deprecated For backward compatibility only
+   */
   private xorCipher(input: string, key: string): string {
     let output = '';
     for (let i = 0; i < input.length; i++) {
@@ -23,23 +100,16 @@ class CryptoService {
     return output;
   }
 
-  // Simple obfuscation for credentials (backward compatible)
-  encrypt(plaintext: string): string {
-    try {
-      const encrypted = this.xorCipher(plaintext, this.credentialKey);
-      return btoa(encrypted);
-    } catch (error) {
-      console.error('Credential encryption error:', error);
-      return plaintext;
-    }
-  }
-
-  decrypt(ciphertext: string): string {
+  /**
+   * Decrypt legacy XOR-encrypted password
+   * @deprecated For migration only
+   */
+  decryptLegacy(ciphertext: string): string {
     try {
       const decoded = atob(ciphertext);
-      return this.xorCipher(decoded, this.credentialKey);
+      return this.xorCipher(decoded, this.LEGACY_CREDENTIAL_KEY);
     } catch (error) {
-      console.error('Credential decryption error:', error);
+      console.error('Legacy decryption error:', error);
       return ciphertext;
     }
   }
@@ -149,8 +219,8 @@ class CryptoService {
 
   // ===== Helper Methods =====
 
-  private arrayBufferToBase64(buffer: ArrayBuffer): string {
-    const bytes = new Uint8Array(buffer);
+  private arrayBufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
+    const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
     let binary = '';
     for (let i = 0; i < bytes.byteLength; i++) {
       binary += String.fromCharCode(bytes[i]);

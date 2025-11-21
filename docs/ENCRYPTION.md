@@ -15,7 +15,8 @@ SimpleDay now supports **AES-256-CBC encryption** for your diary entries when sy
 ### 🔑 Encryption Key Management
 - **Automatic Generation**: Secure random key generation using `expo-crypto`
 - **User-Friendly Display**: Keys are shown in base64 format for easy copying
-- **Key Storage**: Encryption keys are stored locally on your device only
+- **Secure Storage**: Encryption keys stored in platform secure storage (iOS Keychain, Android Keystore)
+- **Hardware Protection**: Keys protected by device hardware security on supported devices
 - **Backup Reminder**: The app prompts you to save your encryption key
 
 ### 🛡️ Security Properties
@@ -103,7 +104,8 @@ const encryptionKey = base64Encode(randomBytes);
 - **Local**: Plain text in app's document directory
 - **WebDAV (Unencrypted)**: `.md` files
 - **WebDAV (Encrypted)**: `.md.enc` files
-- **Encryption Key**: Stored in app settings (encrypted with device-level obfuscation)
+- **Encryption Key**: Stored in platform secure storage (iOS Keychain / Android Keystore)
+- **WebDAV Credentials**: Stored in platform secure storage (iOS Keychain / Android Keystore)
 
 ## Security Considerations
 
@@ -171,16 +173,17 @@ A: No, the encryption key never leaves your device.
 A: No, without your encryption key, the files are secure.
 
 **Q: Why AES-256-CBC instead of AES-256-GCM?**
-A: React Native doesn't support GCM mode natively. CBC mode is still secure when used correctly with random IVs.
+A: CBC mode with random IVs provides strong encryption. GCM would add authenticated encryption but requires different crypto libraries.
 
-**Q: Is the encryption FIPS compliant?**
-A: The AES-256 algorithm is FIPS-approved. Implementation uses `react-native-aes-crypto` library.
+**Q: How are my passwords and keys protected?**
+A: They're stored in platform secure storage: iOS Keychain (hardware-backed) and Android Keystore (encrypted by OS). Not accessible via file system.
 
 ## Implementation Details
 
 ### Libraries Used
 - `expo-crypto`: Secure random number generation
-- `react-native-aes-crypto`: AES encryption/decryption
+- `crypto-js`: AES-256-CBC encryption/decryption
+- `expo-secure-store`: Platform secure storage (iOS Keychain, Android Keystore)
 - Native platform crypto APIs under the hood
 
 ### Code Location

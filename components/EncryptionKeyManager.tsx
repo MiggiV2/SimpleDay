@@ -63,7 +63,7 @@ export function EncryptionKeyManager({
       const newKey = await crypto.generateEncryptionKey();
       setGeneratedKey(newKey);
       setShowKeyModal(true);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to generate encryption key');
     }
   };
@@ -82,20 +82,31 @@ export function EncryptionKeyManager({
   const handleConfirmImport = () => {
     const trimmedKey = importedKey.trim();
     
-    // Basic validation - check if it looks like a base64 string
+    // Validate encryption key format
     if (!trimmedKey) {
       Alert.alert('Invalid Key', 'Please enter an encryption key');
       return;
     }
     
-    // Check if it's valid base64 (basic check)
+    // Check if it's valid base64 with correct length
     try {
-      atob(trimmedKey);
-      if (trimmedKey.length < 32) {
-        throw new Error('Key too short');
+      const decoded = atob(trimmedKey);
+      
+      // A 256-bit (32 byte) key encodes to exactly 44 base64 characters (with padding)
+      if (trimmedKey.length !== 44) {
+        throw new Error('Invalid key length');
       }
-    } catch (error) {
-      Alert.alert('Invalid Key', 'The encryption key format is invalid. Please make sure you copied the complete key.');
+      
+      // Verify decoded length is exactly 32 bytes
+      if (decoded.length !== 32) {
+        throw new Error('Key must be exactly 32 bytes (256 bits)');
+      }
+    } catch {
+      Alert.alert(
+        'Invalid Key', 
+        'The encryption key format is invalid. Please make sure you copied the complete 256-bit key.\n\n' +
+        'Expected: 44-character base64-encoded string'
+      );
       return;
     }
 
@@ -113,7 +124,7 @@ export function EncryptionKeyManager({
       if (text) {
         setImportedKey(text);
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to paste from clipboard');
     }
   };
@@ -122,7 +133,7 @@ export function EncryptionKeyManager({
     try {
       await Clipboard.setStringAsync(text);
       Alert.alert('Copied', 'Encryption key copied to clipboard');
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to copy to clipboard');
     }
   };
@@ -141,7 +152,7 @@ export function EncryptionKeyManager({
       />
 
       <Text style={styles.description}>
-        Encrypt your diary entries before uploading to WebDAV using AES-256-GCM encryption.
+        Encrypt your diary entries before uploading to WebDAV using AES-256-CBC encryption.
         Your encryption key never leaves your device.
       </Text>
 
@@ -171,7 +182,7 @@ export function EncryptionKeyManager({
           </View>
 
           <Text style={styles.warningText}>
-            ⚠️ Store this key safely! You'll need it to decrypt your backups if you reinstall the app.
+            ⚠️ Store this key safely! You&apos;ll need it to decrypt your backups if you reinstall the app.
           </Text>
         </View>
       )}
@@ -207,7 +218,7 @@ export function EncryptionKeyManager({
             <Ionicons name="key" size={48} color="#007AFF" />
             <Text style={styles.modalTitle}>Your Encryption Key</Text>
             <Text style={styles.modalDescription}>
-              This is your encryption key. Store it safely - you'll need it to decrypt your backups.
+              This is your encryption key. Store it safely - you&apos;ll need it to decrypt your backups.
             </Text>
 
             <View style={styles.keyDisplay}>
@@ -225,7 +236,7 @@ export function EncryptionKeyManager({
             />
 
             <Text style={styles.modalWarning}>
-              ⚠️ Make sure to save this key! If you lose it, you won't be able to decrypt your backups.
+              ⚠️ Make sure to save this key! If you lose it, you won&apos;t be able to decrypt your backups.
             </Text>
 
             <View style={styles.modalActions}>

@@ -5,10 +5,10 @@ import { Paths, Directory, File } from 'expo-file-system';
 export interface WebDAVConfig {
   url: string;
   username: string;
-  password: string; // Stored encrypted (XOR obfuscation)
+  password: string; // Legacy field - now stored in secure storage
   enabled: boolean;
   encryptionEnabled: boolean;
-  encryptionKey?: string; // AES-256 key (base64-encoded)
+  encryptionKey?: string; // Legacy field - now stored in secure storage
 }
 
 export interface SyncResult {
@@ -27,6 +27,14 @@ class WebDAVService {
       const config: WebDAVConfig = JSON.parse(configStr);
       if (!config.enabled || !config.url) return null;
       
+      // Load credentials from secure storage
+      const securePassword = await crypto.getPassword();
+      const secureKey = await crypto.getEncryptionKey();
+      
+      // Override with secure values
+      config.password = securePassword || '';
+      config.encryptionKey = secureKey || undefined;
+      
       return config;
     } catch (error) {
       console.error('Error getting WebDAV config:', error);
@@ -35,9 +43,8 @@ class WebDAVService {
   }
 
   private getAuthHeader(config: WebDAVConfig): string {
-    // Decrypt password for authentication
-    const plainPassword = config.password ? crypto.decrypt(config.password) : '';
-    return 'Basic ' + btoa(config.username + ':' + plainPassword);
+    // Password is now loaded directly from secure storage
+    return 'Basic ' + btoa(config.username + ':' + config.password);
   }
 
   async uploadFile(filename: string): Promise<boolean> {

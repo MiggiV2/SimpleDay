@@ -62,11 +62,54 @@ export default function SettingsScreen() {
         const config: WebDAVConfig = JSON.parse(configStr);
         setUrl(config.url || '');
         setUsername(config.username || '');
-        // Decrypt password when loading
-        setPassword(config.password ? crypto.decrypt(config.password) : '');
         setEnabled(config.enabled || false);
         setEncryptionEnabled(config.encryptionEnabled || false);
-        setEncryptionKey(config.encryptionKey);
+        
+        // Migrate legacy password storage to secure storage
+        if (config.password) {
+          try {
+            const legacyPassword = crypto.decryptLegacy(config.password);
+            await crypto.storePassword(legacyPassword);
+            setPassword(legacyPassword);
+            
+            // Clear legacy password from config
+            config.password = '';
+            await storage.setItem('webdav_config', JSON.stringify(config));
+            console.log('Migrated password to secure storage');
+          } catch (error) {
+            console.error('Error migrating password:', error);
+          }
+        } else {
+          // Load from secure storage
+          const securePassword = await crypto.getPassword();
+          setPassword(securePassword || '');
+        }
+        
+        // Migrate legacy encryption key to secure storage
+        if (config.encryptionKey) {
+          try {
+            await crypto.storeEncryptionKey(config.encryptionKey);
+            setEncryptionKey(config.encryptionKey);
+            
+            // Clear legacy key from config
+            config.encryptionKey = undefined;
+            await storage.setItem('webdav_config', JSON.stringify(config));
+            console.log('Migrated encryption key to secure storage');
+          } catch (error) {
+            console.error('Error migrating encryption key:', error);
+            setEncryptionKey(config.encryptionKey);
+          }
+        } else {
+          // Load from secure storage
+          const secureKey = await crypto.getEncryptionKey();
+          setEncryptionKey(secureKey || undefined);
+        }
+      } else {
+        // No config exists, try loading from secure storage
+        const securePassword = await crypto.getPassword();
+        const secureKey = await crypto.getEncryptionKey();
+        setPassword(securePassword || '');
+        setEncryptionKey(secureKey || undefined);
       }
 
       const lastSync = await storage.getItem('last_sync_time');
@@ -122,14 +165,28 @@ export default function SettingsScreen() {
   const saveSettings = async () => {
     setIsSaving(true);
     try {
+      // Store password securely in platform keystore
+      if (password) {
+        await crypto.storePassword(password);
+      } else {
+        await crypto.deletePassword();
+      }
+      
+      // Store encryption key securely in platform keystore
+      if (encryptionKey) {
+        await crypto.storeEncryptionKey(encryptionKey);
+      } else {
+        await crypto.deleteEncryptionKey();
+      }
+      
+      // Store only non-sensitive configuration
       const config: WebDAVConfig = {
         url: url.trim(),
         username: username.trim(),
-        // Encrypt password before saving
-        password: password ? crypto.encrypt(password) : '',
+        password: '', // No longer store password in config
         enabled: enabled,
         encryptionEnabled: encryptionEnabled,
-        encryptionKey: encryptionKey,
+        encryptionKey: undefined, // No longer store key in config
       };
 
       await storage.setItem('webdav_config', JSON.stringify(config));
