@@ -23,6 +23,7 @@ In a world of complex productivity apps, **SimpleDay** brings you back to the si
 - 🎨 **Minimalist Design** - Clean, distraction-free interface
 - ☁️ **WebDAV Sync** - Automatic backup to your own cloud (Nextcloud, ownCloud, etc.)
 - 🔒 **Privacy First** - Your data stays on your device and your cloud
+- 🔐 **App Lock** - Protect the app with biometrics (fingerprint/Face ID) or your device PIN
 - 📱 **Cross-Platform** - Works on iOS, Android, and Web
 - 🌓 **One Entry Per Day** - Simple, focused approach to journaling
 - ✏️ **Live Preview** - Toggle between edit and preview mode
@@ -166,6 +167,8 @@ Track daily accomplishments and tasks.
 
 - ✅ **Local-first** - All data stored on your device
 - ✅ **Encrypted passwords** - WebDAV credentials obfuscated
+- ✅ **App Lock** - Optional biometric/PIN gate (Face ID, fingerprint, or device passcode via `expo-local-authentication`) that locks the app on cold start and whenever it's backgrounded
+  > ⚠️ Note: App Lock only gates the UI — it does **not** encrypt your diary entries at rest. For encryption, enable WebDAV backup encryption above.
 - ✅ **No tracking** - Zero analytics or data collection
 - ✅ **Open source** - Audit the code yourself
 - ✅ **Your cloud, your data** - Full control over backups
@@ -182,6 +185,7 @@ Track daily accomplishments and tasks.
 - **Expo FileSystem** - Local storage
 - **Expo Router** - Navigation
 - **react-native-markdown-display** - Beautiful Markdown rendering
+- **expo-local-authentication** - Biometric/PIN App Lock
 
 ### Storage
 

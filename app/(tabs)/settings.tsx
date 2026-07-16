@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { storage } from '../../services/storage';
 import { crypto } from '../../services/crypto';
 import { notificationService } from '../../services/notifications';
+import { appLock } from '../../services/appLock';
 import Toast from 'react-native-toast-message';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Header } from '../../components/Header';
@@ -37,6 +38,9 @@ export default function SettingsScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState(new Date());
   const [showTimePicker, setShowTimePicker] = useState(false);
+
+  // App lock settings
+  const [appLockEnabled, setAppLockEnabled] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -116,6 +120,9 @@ export default function SettingsScreen() {
       if (lastSync) {
         setLastSyncTime(lastSync);
       }
+
+      // Load app lock setting
+      setAppLockEnabled(await appLock.isEnabled());
 
       // Load notification settings
       const notifSettings = await notificationService.loadSettings();
@@ -220,6 +227,31 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleAppLockToggle = async (value: boolean) => {
+    if (value) {
+      // Verify device supports biometrics/PIN before enabling
+      if (!(await appLock.isAvailable())) {
+        Alert.alert(
+          'Not Available',
+          'App lock requires a device PIN, fingerprint, or face unlock to be set up in your device settings.'
+        );
+        return;
+      }
+      // Require a successful authentication before enabling to prevent lockout
+      const success = await appLock.authenticate();
+      if (!success) {
+        return;
+      }
+    }
+    await appLock.setEnabled(value);
+    setAppLockEnabled(value);
+    Toast.show({
+      type: 'success',
+      text1: value ? 'App lock enabled' : 'App lock disabled',
+      position: 'bottom',
+    });
+  };
+
   const formatSyncTime = (timestamp: string | null) => {
     if (!timestamp) return 'Never';
     const date = new Date(timestamp);
@@ -308,6 +340,19 @@ export default function SettingsScreen() {
       <Header title="Settings" />
 
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Security</Text>
+          <Text style={styles.sectionDescription}>
+            Require your device PIN, fingerprint, or face unlock to open the app
+          </Text>
+
+          <Toggle
+            label="Enable App Lock"
+            value={appLockEnabled}
+            onToggle={handleAppLockToggle}
+          />
+        </View>
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Daily Reminder</Text>
           <Text style={styles.sectionDescription}>

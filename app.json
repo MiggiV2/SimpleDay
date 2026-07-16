@@ -48,6 +48,12 @@
           "sounds": [],
           "mode": "production"
         }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow SimpleDay to use Face ID to unlock the app."
+        }
       ]
     ],
     "experiments": {

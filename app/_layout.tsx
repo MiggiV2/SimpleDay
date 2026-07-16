@@ -4,6 +4,7 @@ import 'react-native-reanimated';
 import Toast from 'react-native-toast-message';
 import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
+import { AppLockGate } from '../components/AppLockGate';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -40,13 +41,13 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <>
+    <AppLockGate>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="entry" options={{ headerShown: false, presentation: 'card' }} />
       </Stack>
       <StatusBar style="auto" />
       <Toast />
-    </>
+    </AppLockGate>
   );
 }
