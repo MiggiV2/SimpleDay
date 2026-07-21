@@ -1,0 +1,19 @@
+SimpleDay is a beautiful, minimalist diary app built around one simple idea: one entry per day. No feeds, no clutter, no accounts to sign up for — just a calm space to write.
+
+Write your thoughts, experiences, and memories in Markdown, and keep them private. Your entries stay on your device and, optionally, on a cloud server you control.
+
+Features:
+
+* Markdown support — formatting, lists, headers and more
+* Live preview — toggle between edit and preview mode
+* Minimalist, distraction-free interface
+* One entry per day — a simple, focused approach to journaling
+* Auto-save — never lose your thoughts
+* App lock — protect the app with biometrics (fingerprint/Face ID) or your device PIN
+* WebDAV sync — automatic backup to your own cloud (Nextcloud, ownCloud, etc.)
+* Smart import — import existing entries from WebDAV on first launch
+* Privacy first — no trackers, no ads, no analytics
+
+Your data belongs to you. SimpleDay talks only to the WebDAV server you configure — nothing else.
+
+SimpleDay is free software, licensed under the GNU GPLv3.

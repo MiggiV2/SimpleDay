@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "🏗️  Building TaskFlow APK locally..."
+echo "🏗️  Building SimpleDay APK locally..."
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -40,8 +40,8 @@ if [ -n "$APK_PATH" ]; then
     echo -e "${GREEN}📊 APK size: $APK_SIZE${NC}"
     
     # Copy APK to root directory for easy access
-    cp "$APK_PATH" ../taskflow-release.apk
-    echo -e "${GREEN}📋 Copied to: taskflow-release.apk${NC}"
+    cp "$APK_PATH" ../simpleday-release.apk
+    echo -e "${GREEN}📋 Copied to: simpleday-release.apk${NC}"
 else
     echo -e "${RED}❌ Build failed: APK not found${NC}"
     exit 1

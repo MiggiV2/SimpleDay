@@ -1,0 +1,2 @@
+Added app lock with biometrics or device PIN.
+Improved end-to-end encryption key storage.

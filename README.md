@@ -229,7 +229,13 @@ Contributions are welcome! Here's how you can help:
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Copyright (C) 2026 Michael Hainz
+
+SimpleDay is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, version 3.
+
+This project is licensed under the GNU GPLv3 - see the [LICENSE](LICENSE) file for details.
 
 ---
 

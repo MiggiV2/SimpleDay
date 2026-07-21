@@ -13,6 +13,7 @@
       "bundleIdentifier": "de.mymiggi.simpleday"
     },
     "android": {
+      "versionCode": 2,
       "jsEngine": "hermes",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",

@@ -1,0 +1,1 @@
+Minimalist Markdown diary with app lock and your-own-cloud WebDAV sync.
