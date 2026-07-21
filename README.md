@@ -64,6 +64,35 @@ npm start
 
 ---
 
+## 📦 Building a Release APK
+
+SimpleDay ships to [IzzyOnDroid](https://apt.izzysoft.de/fdroid/) (an F-Droid-compatible repo), so release APKs must be reproducible, signed with the real release key, and buildable without any cloud service. Release builds are produced **locally and offline** with `./build-offline.sh` — no EAS or other cloud build service needed.
+
+```bash
+./build-offline.sh
+```
+
+The script runs `expo prebuild`, injects the release signing config into the generated Gradle project, writes `android/local.properties`, then runs `gradlew assembleRelease`. The finished APK is copied to `simpleday-release.apk` in the repo root.
+
+### Additional Prerequisites
+
+On top of the usual Node/npm setup above, a release build needs:
+
+- **JDK 17 or 21** — the repo pins JDK 21 via jenv (`.java-version`); newer JDKs (e.g. 25) break the Gradle/Kotlin toolchain. The script aborts if the active JDK isn't 17 or 21.
+- **Android SDK** — auto-detected from `$ANDROID_HOME`/`$ANDROID_SDK_ROOT` or `~/Android/Sdk`.
+- **A release keystore + `keystore.properties`**:
+  1. Generate the keystore **once** and keep it forever — losing it means you can never ship an update under the same app identity:
+     ```bash
+     keytool -genkeypair -v -keystore simpleday-release.keystore \
+       -alias simpleday -keyalg RSA -keysize 2048 -validity 10000
+     ```
+  2. `cp keystore.properties.example keystore.properties` and fill in `storeFile` (absolute path), `storePassword`, `keyAlias`, and `keyPassword`.
+  3. Both `simpleday-release.keystore` and `keystore.properties` are gitignored — never commit them.
+
+The script refuses to produce a debug-signed release and verifies the final APK's signer isn't the Android debug key before handing it off.
+
+---
+
 ## ☁️ Cloud Sync with Nextcloud
 
 SimpleDay works perfectly with **Nextcloud** using WebDAV sync!
