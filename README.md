@@ -27,7 +27,7 @@ A minimalistic diary app with Markdown support and WebDAV cloud sync.
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v18 or later)
+- [Node.js](https://nodejs.org/) (v20 or later)
 - [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
 - [Expo CLI](https://docs.expo.dev/get-started/installation/)
 
@@ -190,6 +190,12 @@ SimpleDay/
     └── Import on first launch
     └── Delete sync
 ```
+
+---
+
+## Development & AI
+
+This app is coded 100% with AI (Claude / Claude Code). Every feature is tested manually — SimpleDay has been my daily driver since 2025, and I actively maintain it.
 
 ---
 
