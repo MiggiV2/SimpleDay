@@ -1,4 +1,4 @@
-# ✨ SimpleDay - Your Personal Minimalist Diary
+# SimpleDay - Minimalist Diary
 
 <p align="center">
   <img src="https://img.shields.io/badge/Made%20with-Expo-blue?style=for-the-badge&logo=expo" alt="Expo">
@@ -7,32 +7,23 @@
   <img src="https://img.shields.io/badge/Markdown-000000?style=for-the-badge&logo=markdown&logoColor=white" alt="Markdown">
 </p>
 
-<p align="center">
-  <strong>A beautiful, minimalistic diary app with Markdown support and cloud sync</strong>
-</p>
+A minimalistic diary app with Markdown support and WebDAV cloud sync.
+
+### Key Features
+
+- **Markdown** - write entries with formatting, lists, headers
+- **WebDAV Sync** - automatic backup to your own cloud (Nextcloud, ownCloud, etc.)
+- **Privacy First** - data stays on your device and your cloud, no tracking
+- **App Lock** - biometrics (fingerprint/Face ID) or device PIN
+- **Cross-Platform** - iOS, Android, Web
+- **One Entry Per Day** - simple, focused journaling model
+- **Live Preview** - toggle between edit and preview mode
+- **Auto-Save**
+- **Smart Import** - imports existing WebDAV entries on first launch
 
 ---
 
-## 🌟 Why SimpleDay?
-
-In a world of complex productivity apps, **SimpleDay** brings you back to the simple joy of journaling. Write your thoughts, experiences, and memories in beautiful Markdown, with the peace of mind that your entries are securely backed up.
-
-### ✨ Key Features
-
-- 📝 **Markdown Support** - Write with formatting, lists, headers, and more
-- 🎨 **Minimalist Design** - Clean, distraction-free interface
-- ☁️ **WebDAV Sync** - Automatic backup to your own cloud (Nextcloud, ownCloud, etc.)
-- 🔒 **Privacy First** - Your data stays on your device and your cloud
-- 🔐 **App Lock** - Protect the app with biometrics (fingerprint/Face ID) or your device PIN
-- 📱 **Cross-Platform** - Works on iOS, Android, and Web
-- 🌓 **One Entry Per Day** - Simple, focused approach to journaling
-- ✏️ **Live Preview** - Toggle between edit and preview mode
-- 💾 **Auto-Save** - Never lose your thoughts
-- 🔄 **Smart Import** - Import existing entries from WebDAV on first launch
-
----
-
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -44,10 +35,10 @@ In a world of complex productivity apps, **SimpleDay** brings you back to the si
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/simpleday.git
+git clone https://github.com/MiggiV2/SimpleDay.git
 
 # Navigate to project directory
-cd simpleday
+cd SimpleDay
 
 # Install dependencies
 npm install
@@ -64,7 +55,7 @@ npm start
 
 ---
 
-## 📦 Building a Release APK
+## Building a Release APK
 
 SimpleDay ships to [IzzyOnDroid](https://apt.izzysoft.de/fdroid/) (an F-Droid-compatible repo), so release APKs must be reproducible, signed with the real release key, and buildable without any cloud service. Release builds are produced **locally and offline** with `./build-offline.sh` — no EAS or other cloud build service needed.
 
@@ -93,134 +84,99 @@ The script refuses to produce a debug-signed release and verifies the final APK'
 
 ---
 
-## ☁️ Cloud Sync with Nextcloud
+## Cloud Sync with Nextcloud
 
-SimpleDay works perfectly with **Nextcloud** using WebDAV sync!
+### Setup
 
-### Setup with Nextcloud
-
-1. **Open SimpleDay** and go to Settings ⚙️
-2. **Enable WebDAV Sync**
-3. **Enter your Nextcloud credentials**:
+1. Open SimpleDay and go to Settings
+2. Enable WebDAV Sync
+3. Enter your Nextcloud credentials:
    ```
    URL: https://your-nextcloud.com/remote.php/dav/files/username/SimpleDay/
    Username: your-username
    Password: your-password or app-password
    ```
-4. **Click "Verify Connection"** to test
-5. **Save Settings** ✅
+4. Click "Verify Connection" to test
+5. Save Settings
 
-> 💡 **Pro Tip**: Create an app-specific password in Nextcloud (Settings → Security) for better security!
+> Tip: create an app-specific password in Nextcloud (Settings → Security) for better security.
 
-### Other WebDAV Services
-
-SimpleDay works with any WebDAV-compatible service:
-
-- ✅ **Nextcloud** - Perfect for self-hosted privacy
-- ✅ **ownCloud** - Another great self-hosted option
-- ✅ **Box.com** - WebDAV support available
-- ✅ **4shared** - Free WebDAV storage
-- ✅ **Any WebDAV server** - Full standard support
+SimpleDay works with any WebDAV-compatible server (Nextcloud, ownCloud, etc.).
 
 ---
 
-## 📖 How to Use
+## How to Use
 
-### Creating Your First Entry
+### Creating an Entry
 
-1. **Tap the + button** in the top right
-2. **Add a title** for your entry
-3. **Write your thoughts** in Markdown
-4. **Tap the checkmark** to save
+1. Tap the + button in the top right
+2. Add a title
+3. Write your thoughts in Markdown
+4. Tap the checkmark to save
 
 ### Markdown Features
 
-SimpleDay supports all standard Markdown:
+SimpleDay supports standard Markdown:
 
 ```markdown
 # Big Header
 ## Medium Header
-### Small Header
 
 **Bold text**
 *Italic text*
 
 - Bullet points
-- Make lists easy
 
 1. Numbered lists
-2. Keep things organized
 
-> Quotes for inspiration
+> Quotes
 
-`Inline code` for technical notes
+`Inline code`
 ```
 
 ### Viewing Entries
 
-- **Tap any entry** to view or edit
-- **Toggle preview mode** with the eye icon
-- **Delete entries** with the trash icon
+- Tap any entry to view or edit
+- Toggle preview mode with the eye icon
+- Delete entries with the trash icon
 
 ### Cloud Sync
 
-- **Auto-sync** happens in the background when you save
-- **Import** existing entries when you first open the app
-- **Check sync status** in Settings
+- Auto-sync happens in the background when you save
+- Import runs against existing entries when you first open the app
+- Sync status is visible in Settings
 
 ---
 
-## 🎯 Use Cases
+## Privacy & Security
 
-### 📓 Personal Journaling
-Keep a daily log of your thoughts, feelings, and experiences.
-
-### 🎓 Learning Notes
-Document what you learn each day with Markdown formatting.
-
-### 💡 Idea Collection
-Capture ideas and insights as they come to you.
-
-### 🌍 Travel Diary
-Record your adventures with dates and locations.
-
-### 🧘 Gratitude Journal
-Write what you're grateful for every day.
-
-### 📊 Work Log
-Track daily accomplishments and tasks.
+- **Local-first** - all data stored on your device
+- **Encrypted passwords** - WebDAV credentials obfuscated
+- **App Lock** - optional biometric/PIN gate (Face ID, fingerprint, or device passcode via `expo-local-authentication`) that locks the app on cold start and whenever it's backgrounded
+  > Note: App Lock only gates the UI — it does **not** encrypt your diary entries at rest. For encryption, enable WebDAV backup encryption above.
+- **No tracking** - zero analytics or data collection
+- **Open source** - audit the code yourself
+- **Your cloud, your data** - full control over backups
 
 ---
 
-## 🔒 Privacy & Security
-
-- ✅ **Local-first** - All data stored on your device
-- ✅ **Encrypted passwords** - WebDAV credentials obfuscated
-- ✅ **App Lock** - Optional biometric/PIN gate (Face ID, fingerprint, or device passcode via `expo-local-authentication`) that locks the app on cold start and whenever it's backgrounded
-  > ⚠️ Note: App Lock only gates the UI — it does **not** encrypt your diary entries at rest. For encryption, enable WebDAV backup encryption above.
-- ✅ **No tracking** - Zero analytics or data collection
-- ✅ **Open source** - Audit the code yourself
-- ✅ **Your cloud, your data** - Full control over backups
-
----
-
-## 🛠️ Technical Details
+## Technical Details
 
 ### Built With
 
-- **React Native** - Cross-platform mobile framework
-- **Expo** - Development platform and tools
-- **TypeScript** - Type-safe JavaScript
-- **Expo FileSystem** - Local storage
-- **Expo Router** - Navigation
-- **react-native-markdown-display** - Beautiful Markdown rendering
-- **expo-local-authentication** - Biometric/PIN App Lock
+- **React Native** - cross-platform mobile framework
+- **Expo** - development platform and tools
+- **TypeScript**
+- **Expo FileSystem** - local storage
+- **Expo Router** - navigation
+- **react-native-markdown-display** - Markdown rendering
+- **expo-local-authentication** - biometric/PIN App Lock
 
 ### Storage
 
-- **Local**: Files stored in app's private document directory
-- **Format**: Each entry is a `DATE_title.md` file
-- **Cloud**: Optional WebDAV sync for backup
+- **Local**: files stored in the app's private document directory
+- **Format**: each entry is a `DATE_title.md` file
+- **Cloud**: optional WebDAV sync for backup
 
 ### Architecture
 
@@ -237,15 +193,13 @@ SimpleDay/
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-Contributions are welcome! Here's how you can help:
-
-1. **Fork the repository**
-2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
-3. **Commit your changes** (`git commit -m 'Add some amazing feature'`)
-4. **Push to the branch** (`git push origin feature/amazing-feature`)
-5. **Open a Pull Request**
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ### Development Guidelines
 
@@ -256,7 +210,7 @@ Contributions are welcome! Here's how you can help:
 
 ---
 
-## 📄 License
+## License
 
 Copyright (C) 2026 Michael Hainz
 
@@ -265,31 +219,3 @@ terms of the GNU General Public License as published by the Free Software
 Foundation, version 3.
 
 This project is licensed under the GNU GPLv3 - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 💖 Acknowledgments
-
-- Inspired by the simplicity of journaling with pen and paper
-- Built with love for the privacy-conscious community
-- Thanks to all contributors and users!
-
----
-
-<p align="center">
-  Made with ❤️ for people who value simplicity and privacy
-</p>
-
-<p align="center">
-  <strong>Start journaling today. It's that simple.</strong>
-</p>
-
----
-
-## 🌟 Star History
-
-If you find SimpleDay useful, please consider giving it a star ⭐
-
-<p align="center">
-  <strong>SimpleDay</strong> - Write. Sync. Reflect.
-</p>
