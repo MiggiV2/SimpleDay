@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 // Persistent secure storage using Expo FileSystem
 // Settings are stored as encrypted JSON files in the app's document directory
 

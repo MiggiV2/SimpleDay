@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 /**
  * Learn more about light and dark modes:
  * https://docs.expo.dev/guides/color-schemes/

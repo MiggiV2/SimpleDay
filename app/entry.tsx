@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 import { StyleSheet, View, TextInput, TouchableOpacity, Alert, ScrollView, Text, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';

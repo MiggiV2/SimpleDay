@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 // App lock service using device biometrics / PIN via expo-local-authentication
 import * as LocalAuthentication from 'expo-local-authentication';
 import { storage } from './storage';

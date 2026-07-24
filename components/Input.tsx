@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 import { View, Text, TextInput, StyleSheet, TextInputProps } from 'react-native';
 
 interface InputProps extends TextInputProps {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';

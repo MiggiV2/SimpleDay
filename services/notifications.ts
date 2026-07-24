@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { storage } from './storage';

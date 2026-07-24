@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 import { StyleSheet, FlatList, TouchableOpacity, View, Text, Alert } from 'react-native';
 import { useState, useCallback, memo, useEffect, useRef } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';

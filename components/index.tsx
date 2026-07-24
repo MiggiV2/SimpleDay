@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 export { Button } from './Button';
 export { Header } from './Header';
 export { Toggle } from './Toggle';

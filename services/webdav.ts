@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 import { storage } from './storage';
 import { crypto } from './crypto';
 import { Paths, Directory, File } from 'expo-file-system';

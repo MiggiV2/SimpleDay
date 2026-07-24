@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 import * as ExpoCrypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import CryptoJS from 'crypto-js';

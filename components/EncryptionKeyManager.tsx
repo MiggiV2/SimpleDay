@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, TextInput } from 'react-native';
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
