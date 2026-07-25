@@ -197,6 +197,17 @@ SimpleDay/
 
 This app is coded 100% with AI (Claude / Claude Code). Every feature is tested manually — SimpleDay has been my daily driver since 2025, and I actively maintain it.
 
+### Tests
+
+Unit tests for the service layer (crypto, app lock, storage) run with Jest:
+
+```bash
+npm test           # single run
+npm run test:watch # watch mode
+```
+
+They use in-memory fakes for the Expo native modules, so no device or emulator is needed. GitHub Actions runs `tsc --noEmit` and the test suite on every push and pull request.
+
 ---
 
 ## Contributing
@@ -211,6 +222,7 @@ This app is coded 100% with AI (Claude / Claude Code). Every feature is tested m
 
 - Follow the existing code style
 - Write meaningful commit messages
+- Add unit tests for service-layer changes and keep `npm test` green
 - Test on both iOS and Android
 - Update documentation for new features
 

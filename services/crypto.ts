@@ -204,14 +204,16 @@ class CryptoService {
       const keyWordArray = CryptoJS.enc.Base64.parse(encryptionKey);
       const ivWordArray = CryptoJS.enc.Base64.parse(iv);
 
-      // Decrypt using AES-256-CBC
+      // Decrypt using AES-256-CBC. Padding is removed manually below: CryptoJS
+      // strips it without validating it, which turns a wrong key into an empty
+      // string instead of an error.
       const decrypted = CryptoJS.AES.decrypt(encrypted, keyWordArray, {
         iv: ivWordArray,
         mode: CryptoJS.mode.CBC,
-        padding: CryptoJS.pad.Pkcs7
+        padding: CryptoJS.pad.NoPadding
       });
 
-      return decrypted.toString(CryptoJS.enc.Utf8);
+      return this.stripPkcs7Padding(decrypted).toString(CryptoJS.enc.Utf8);
     } catch (error) {
       console.error('Decryption error:', error);
       throw new Error('Failed to decrypt content. Wrong encryption key?');
@@ -219,6 +221,35 @@ class CryptoService {
   }
 
   // ===== Helper Methods =====
+
+  /**
+   * Remove and validate PKCS#7 padding.
+   * Invalid padding means the ciphertext was decrypted with the wrong key or
+   * was corrupted, so it must surface as an error instead of empty content.
+   */
+  private stripPkcs7Padding(data: CryptoJS.lib.WordArray): CryptoJS.lib.WordArray {
+    const BLOCK_SIZE = 16;
+    const { sigBytes } = data;
+
+    if (sigBytes <= 0 || sigBytes % BLOCK_SIZE !== 0) {
+      throw new Error('Invalid block size');
+    }
+
+    const byteAt = (index: number) => (data.words[index >>> 2] >>> (24 - (index % 4) * 8)) & 0xff;
+    const padLength = byteAt(sigBytes - 1);
+
+    if (padLength < 1 || padLength > BLOCK_SIZE) {
+      throw new Error('Invalid padding');
+    }
+
+    for (let i = sigBytes - padLength; i < sigBytes; i++) {
+      if (byteAt(i) !== padLength) {
+        throw new Error('Invalid padding');
+      }
+    }
+
+    return CryptoJS.lib.WordArray.create(data.words.slice(), sigBytes - padLength);
+  }
 
   private arrayBufferToBase64(buffer: ArrayBuffer | Uint8Array): string {
     const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
