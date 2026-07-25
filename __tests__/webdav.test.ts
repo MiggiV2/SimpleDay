@@ -234,6 +234,128 @@ describe('webdav: download', () => {
   });
 });
 
+describe('webdav: restoring a backup', () => {
+  /** Serves a PROPFIND listing plus a GET per file, like a real server would. */
+  function serveRemote(remote: Record<string, string>) {
+    fetchMock.mockImplementation(async (url: string, init: { method: string }) => {
+      if (init.method === 'PROPFIND') {
+        return ok(propfindBody(Object.keys(remote).map(name => `/diary/${encodeURIComponent(name)}`)), 207);
+      }
+      const name = decodeURIComponent(url.split('/').pop() as string);
+      if (!(name in remote)) return { ok: false, status: 404, text: async () => '' };
+      return ok(remote[name]);
+    });
+  }
+
+  it('restores every entry onto an empty device', async () => {
+    configure({ encryptionEnabled: true });
+    serveRemote({
+      '2025-01-01_New Year.md.enc': 'ENC(happy new year)',
+      '2025-02-25_Übung.md.enc': 'ENC(deutsch lernen)',
+    });
+
+    await expect(webdavService.importFromWebDAV()).resolves.toEqual({
+      success: true,
+      imported: 2,
+      errors: [],
+    });
+
+    expect(files.get(`${DIARY_DIR}/2025-01-01_New Year.md`)).toBe('happy new year');
+    expect(files.get(`${DIARY_DIR}/2025-02-25_Übung.md`)).toBe('deutsch lernen');
+  });
+
+  it('restores unencrypted backups too', async () => {
+    configure();
+    serveRemote({ '2025-01-01_New Year.md': 'plain text' });
+
+    await expect(webdavService.importFromWebDAV()).resolves.toMatchObject({ imported: 1 });
+    expect(files.get(`${DIARY_DIR}/2025-01-01_New Year.md`)).toBe('plain text');
+  });
+
+  it('leaves entries that already exist on the device untouched', async () => {
+    configure();
+    seedLocal('2025-01-01_New Year.md', 'local version');
+    serveRemote({ '2025-01-01_New Year.md': 'remote version', '2025-01-02_Other.md': 'other' });
+
+    await expect(webdavService.importFromWebDAV()).resolves.toMatchObject({ imported: 1 });
+    expect(files.get(`${DIARY_DIR}/2025-01-01_New Year.md`)).toBe('local version');
+  });
+
+  it('reports the failing entry by name and keeps the rest', async () => {
+    configure({ encryptionEnabled: true });
+    const { crypto } = require('../services/crypto');
+    crypto.decryptContent.mockImplementation(async (content: string) => {
+      if (content === 'ENC(bad)') throw new Error('Failed to decrypt content. Wrong encryption key?');
+      return content.replace(/^ENC\(|\)$/g, '');
+    });
+    serveRemote({ 'a.md.enc': 'ENC(good)', 'b.md.enc': 'ENC(bad)' });
+
+    const result = await webdavService.importFromWebDAV();
+
+    expect(result).toMatchObject({ success: false, imported: 1 });
+    expect(result.errors).toEqual(['Failed to download b.md']);
+    expect(files.get(`${DIARY_DIR}/a.md`)).toBe('good');
+    expect(files.has(`${DIARY_DIR}/b.md`)).toBe(false);
+  });
+
+  it('reports progress per entry', async () => {
+    configure();
+    serveRemote({ 'a.md': '1', 'b.md': '2' });
+    const progress: [number, number, string][] = [];
+
+    await webdavService.importFromWebDAV((current, total, filename) =>
+      progress.push([current, total, filename])
+    );
+
+    expect(progress).toEqual([
+      [1, 2, 'a.md'],
+      [2, 2, 'b.md'],
+    ]);
+  });
+
+  it('says so when the backup folder is empty', async () => {
+    configure();
+    serveRemote({});
+
+    await expect(webdavService.importFromWebDAV()).resolves.toEqual({
+      success: true,
+      imported: 0,
+      errors: ['No files found on WebDAV server'],
+    });
+  });
+
+  it('refuses to import when WebDAV is not configured', async () => {
+    await expect(webdavService.importFromWebDAV()).resolves.toEqual({
+      success: false,
+      imported: 0,
+      errors: ['WebDAV not configured'],
+    });
+  });
+
+  it('records the sync time only when something was imported', async () => {
+    configure();
+    serveRemote({});
+    await webdavService.importFromWebDAV();
+    expect(items.last_sync_time).toBeUndefined();
+
+    serveRemote({ 'a.md': 'x' });
+    await webdavService.importFromWebDAV();
+    expect(items.last_sync_time).toBeDefined();
+  });
+
+  it('cannot see plain .md backups while encryption is enabled', async () => {
+    // Known limitation: the remote listing filters on the .enc suffix, so a
+    // folder written before encryption was turned on looks empty.
+    configure({ encryptionEnabled: true });
+    serveRemote({ '2025-01-01_New Year.md': 'written before encryption' });
+
+    await expect(webdavService.importFromWebDAV()).resolves.toMatchObject({
+      imported: 0,
+      errors: ['No files found on WebDAV server'],
+    });
+  });
+});
+
 describe('webdav: sync after rename', () => {
   it('uploads the new name and only then deletes the old one', async () => {
     configure();
