@@ -175,7 +175,17 @@ SimpleDay supports standard Markdown:
 ### Storage
 
 - **Local**: files stored in the app's private document directory
-- **Format**: each entry is a `DATE_title.md` file
+- **Format**: each entry is a `DATE_title.md` file with a small YAML front matter block holding the exact title:
+
+  ```markdown
+  ---
+  title: "My Day"
+  ---
+
+  Entry text…
+  ```
+
+  Entries written by earlier versions have no front matter — they are read with the title taken from the filename and get the block added the next time they are saved. Nothing is renamed or rewritten during an update.
 - **Cloud**: optional WebDAV sync for backup
 
 ### Architecture

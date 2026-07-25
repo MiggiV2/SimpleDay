@@ -7,6 +7,7 @@ import { storage } from '../../services/storage';
 import { crypto } from '../../services/crypto';
 import { notificationService } from '../../services/notifications';
 import { appLock } from '../../services/appLock';
+import { diary } from '../../services/diary';
 import Toast from 'react-native-toast-message';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Header } from '../../components/Header';
@@ -302,32 +303,16 @@ export default function SettingsScreen() {
 
   const wipeLocalEntries = async () => {
     try {
-      const { Paths, Directory } = await import('expo-file-system');
-      const diaryDir = new Directory(Paths.document, 'diary');
-      
-      if (!(await diaryDir.exists)) {
+      const deleted = await diary.wipeAll();
+
+      if (deleted === 0) {
         Alert.alert('Info', 'No local entries found.');
         return;
-      }
-
-      const files = await diaryDir.list();
-      const mdFiles = files.filter(f => f.name.endsWith('.md'));
-      
-      if (mdFiles.length === 0) {
-        Alert.alert('Info', 'No local entries found.');
-        return;
-      }
-
-      // Delete all .md files
-      for (const file of mdFiles) {
-        const { File } = await import('expo-file-system');
-        const fileObj = new File(diaryDir, file.name);
-        await fileObj.delete();
       }
 
       Alert.alert(
         'Success',
-        `${mdFiles.length} ${mdFiles.length === 1 ? 'entry' : 'entries'} deleted from local storage.\n\nYou can re-import from WebDAV if needed.`,
+        `${deleted} ${deleted === 1 ? 'entry' : 'entries'} deleted from local storage.\n\nYou can re-import from WebDAV if needed.`,
         [{ text: 'OK' }]
       );
     } catch (error) {

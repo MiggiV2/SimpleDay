@@ -2,61 +2,7 @@
 // The persistent storage is exercised against an in-memory fake of
 // expo-file-system, so no native module or real disk access is involved.
 
-jest.mock('expo-file-system', () => {
-  const files = new Map<string, string>();
-  const dirs = new Set<string>();
-
-  class Directory {
-    uri: string;
-
-    constructor(parent: string | { uri: string }, name: string) {
-      const base = typeof parent === 'string' ? parent : parent.uri;
-      this.uri = `${base.replace(/\/$/, '')}/${name}`;
-    }
-
-    get exists() {
-      return dirs.has(this.uri);
-    }
-
-    create() {
-      dirs.add(this.uri);
-    }
-
-    list() {
-      return [...files.keys()]
-        .filter(uri => uri.startsWith(`${this.uri}/`))
-        .map(uri => ({ uri, name: uri.slice(this.uri.length + 1) }));
-    }
-  }
-
-  class File {
-    uri: string;
-    name: string;
-
-    constructor(dir: { uri: string }, name: string) {
-      this.uri = `${dir.uri}/${name}`;
-      this.name = name;
-    }
-
-    get exists() {
-      return files.has(this.uri);
-    }
-
-    text() {
-      return files.get(this.uri);
-    }
-
-    write(value: string) {
-      files.set(this.uri, value);
-    }
-
-    delete() {
-      files.delete(this.uri);
-    }
-  }
-
-  return { Paths: { document: 'file:///doc' }, Directory, File, __files: files, __dirs: dirs };
-});
+jest.mock('expo-file-system', () => require('./helpers/fakeFileSystem').createFakeFileSystem());
 
 const SETTINGS_DIR = 'file:///doc/.settings';
 

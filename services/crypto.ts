@@ -198,7 +198,8 @@ class CryptoService {
         throw new Error('Invalid encrypted format');
       }
 
-      const [salt, iv, encrypted] = parts;
+      // parts[0] is the salt, kept in the envelope for backward compatibility
+      const [, iv, encrypted] = parts;
 
       // Convert base64 key and IV to WordArray for CryptoJS
       const keyWordArray = CryptoJS.enc.Base64.parse(encryptionKey);

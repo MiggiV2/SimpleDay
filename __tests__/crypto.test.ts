@@ -74,7 +74,7 @@ describe('crypto: AES-256-CBC content encryption', () => {
 
   it('rejects a tampered ciphertext', async () => {
     const key = await crypto.generateEncryptionKey();
-    const [salt, iv, ciphertext] = (await crypto.encryptContent('top secret', key)).split(':');
+    const [salt, iv] = (await crypto.encryptContent('top secret', key)).split(':');
     const tampered = `${salt}:${iv}:${btoa('garbage'.repeat(8))}`;
 
     await expect(crypto.decryptContent(tampered, key)).rejects.toThrow('Failed to decrypt content');

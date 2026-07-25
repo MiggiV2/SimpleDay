@@ -2,24 +2,17 @@
 import { StyleSheet, FlatList, TouchableOpacity, View, Text, Alert } from 'react-native';
 import { useState, useCallback, memo, useEffect, useRef } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Paths, Directory, File } from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 import { webdavService } from '../../services/webdav';
+import { diary, DiaryEntryMeta } from '../../services/diary';
 import Toast from 'react-native-toast-message';
 import { Header } from '../../components/Header';
 import { EmptyState } from '../../components/EmptyState';
 import { ProgressOverlay } from '../../components/ProgressOverlay';
 import { Button } from '../../components/Button';
 
-interface DiaryEntry {
-  filename: string;
-  date: string;
-  title: string;
-  preview: string;
-}
-
 // Memoized entry card component for better performance
-const EntryCard = memo(({ item, onPress }: { item: DiaryEntry; onPress: () => void }) => {
+const EntryCard = memo(({ item, onPress }: { item: DiaryEntryMeta; onPress: () => void }) => {
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-US', { 
@@ -43,7 +36,7 @@ const EntryCard = memo(({ item, onPress }: { item: DiaryEntry; onPress: () => vo
 EntryCard.displayName = 'EntryCard';
 
 export default function DiaryListScreen() {
-  const [entries, setEntries] = useState<DiaryEntry[]>([]);
+  const [entries, setEntries] = useState<DiaryEntryMeta[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, filename: '' });
   const [showImportPrompt, setShowImportPrompt] = useState(false);
@@ -54,38 +47,9 @@ export default function DiaryListScreen() {
 
   const loadEntries = async () => {
     try {
-      const diaryDir = new Directory(Paths.document, 'diary');
-      
-      if (!(await diaryDir.exists)) {
-        await diaryDir.create();
-        setEntries([]);
-        return;
-      }
-
-      const files = await diaryDir.list();
-      const mdFiles = files.filter(f => f.name.endsWith('.md'));
-      
-      const entriesData = await Promise.all(
-        mdFiles.map(async (file) => {
-          const fileObj = new File(diaryDir, file.name);
-          const content = await fileObj.text();
-          
-          // Extract title from filename: DATE_title.md
-          const parts = file.name.replace('.md', '').split('_');
-          const date = parts[0];
-          const title = parts.slice(1).join('_').replace(/_/g, ' ') || 'Untitled';
-          
-          // Get preview (first 100 chars of content)
-          const preview = content.substring(0, 100).replace(/[#*_`]/g, '').trim();
-          
-          return { filename: file.name, date, title, preview };
-        })
-      );
-
-      // Sort by date descending
-      entriesData.sort((a, b) => b.date.localeCompare(a.date));
+      const entriesData = await diary.list();
       setEntries(entriesData);
-      
+
       // Show import prompt if no entries
       if (entriesData.length === 0) {
         setShowImportPrompt(true);
@@ -135,11 +99,11 @@ export default function DiaryListScreen() {
     router.push(`/entry?date=${today}&new=true`);
   };
 
-  const openEntry = useCallback((entry: DiaryEntry) => {
-    router.push(`/entry?filename=${entry.filename}`);
+  const openEntry = useCallback((entry: DiaryEntryMeta) => {
+    router.push(`/entry?filename=${encodeURIComponent(entry.filename)}`);
   }, [router]);
 
-  const renderItem = useCallback(({ item }: { item: DiaryEntry }) => (
+  const renderItem = useCallback(({ item }: { item: DiaryEntryMeta }) => (
     <EntryCard item={item} onPress={() => openEntry(item)} />
   ), [openEntry]);
 

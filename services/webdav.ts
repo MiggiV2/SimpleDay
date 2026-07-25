@@ -135,17 +135,42 @@ class WebDAVService {
     const configured = await this.isConfigured();
     if (!configured) return;
 
-    // Sync in background
-    this.uploadFile(filename).then(success => {
-      if (success) {
-        // Update last sync time
-        storage.setItem('last_sync_time', new Date().toISOString()).catch(error => {
-          console.error('Failed to update sync time:', error);
-        });
+    try {
+      if (await this.uploadFile(filename)) {
+        await this.touchSyncTime();
       }
-    }).catch(error => {
+    } catch (error) {
       console.error('Background sync failed:', error);
-    });
+    }
+  }
+
+  /**
+   * Mirror a local rename. The old remote file is only removed after the new
+   * one has been uploaded, so a failed upload never leaves the server empty.
+   */
+  async syncAfterRename(oldFilename: string, newFilename: string): Promise<void> {
+    const configured = await this.isConfigured();
+    if (!configured) return;
+
+    try {
+      if (!(await this.uploadFile(newFilename))) {
+        console.error(`Rename sync skipped: upload of ${newFilename} failed`);
+        return;
+      }
+
+      await this.deleteFile(oldFilename);
+      await this.touchSyncTime();
+    } catch (error) {
+      console.error('Background rename sync failed:', error);
+    }
+  }
+
+  private async touchSyncTime(): Promise<void> {
+    try {
+      await storage.setItem('last_sync_time', new Date().toISOString());
+    } catch (error) {
+      console.error('Failed to update sync time:', error);
+    }
   }
 
   async downloadFile(filename: string): Promise<boolean> {
@@ -313,17 +338,13 @@ class WebDAVService {
     const configured = await this.isConfigured();
     if (!configured) return;
 
-    // Delete from WebDAV in background
-    this.deleteFile(filename).then(success => {
-      if (success) {
-        // Update last sync time
-        storage.setItem('last_sync_time', new Date().toISOString()).catch(error => {
-          console.error('Failed to update sync time:', error);
-        });
+    try {
+      if (await this.deleteFile(filename)) {
+        await this.touchSyncTime();
       }
-    }).catch(error => {
+    } catch (error) {
       console.error('Background delete failed:', error);
-    });
+    }
   }
 
   async isConfigured(): Promise<boolean> {

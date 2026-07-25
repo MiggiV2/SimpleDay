@@ -2,11 +2,11 @@
 import { StyleSheet, View, TextInput, TouchableOpacity, Alert, ScrollView, Text, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Paths, Directory, File } from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 import Markdown from 'react-native-markdown-display';
 import Toast from 'react-native-toast-message';
 import { webdavService } from '../services/webdav';
+import { diary, dateFromFilename } from '../services/diary';
 
 export default function EntryScreen() {
   const params = useLocalSearchParams();
@@ -30,14 +30,9 @@ export default function EntryScreen() {
       }
 
       if (params.filename) {
-        const diaryDir = new Directory(Paths.document, 'diary');
-        const file = new File(diaryDir, params.filename as string);
-        const fileContent = await file.text();
-        setContent(fileContent);
-        
-        // Extract title from filename
-        const parts = (params.filename as string).replace('.md', '').split('_');
-        setTitle(parts.slice(1).join('_').replace(/_/g, ' ') || 'Untitled');
+        const entry = await diary.read(params.filename as string);
+        setContent(entry.body);
+        setTitle(entry.title);
       }
     } catch (error) {
       console.error('Error loading entry:', error);
@@ -52,29 +47,23 @@ export default function EntryScreen() {
         return;
       }
 
-      const diaryDir = new Directory(Paths.document, 'diary');
-      if (!(await diaryDir.exists)) {
-        await diaryDir.create();
-      }
+      const existingFilename = params.filename as string | undefined;
+      const date = (params.date as string) || dateFromFilename(existingFilename as string);
 
-      const date = params.date || (params.filename as string).split('_')[0];
-      const sanitizedTitle = title.trim().replace(/[\/\\:*?"<>|]/g, '_') || 'untitled';
-      const filename = `${date}_${sanitizedTitle}.md`;
+      const { filename, renamedFrom } = await diary.save({
+        filename: existingFilename,
+        date,
+        title,
+        body: content,
+      });
 
-      // If editing existing file with different title, delete old file
-      if (params.filename && params.filename !== filename) {
-        const oldFile = new File(diaryDir, params.filename as string);
-        if (await oldFile.exists) {
-          await oldFile.delete();
-        }
-      }
-
-      const file = new File(diaryDir, filename);
-      await file.write(content);
-      
       // Sync to WebDAV in background
-      webdavService.syncAfterSave(filename);
-      
+      if (renamedFrom) {
+        webdavService.syncAfterRename(renamedFrom, filename);
+      } else {
+        webdavService.syncAfterSave(filename);
+      }
+
       Toast.show({
         type: 'success',
         text1: 'Entry saved',
@@ -101,10 +90,8 @@ export default function EntryScreen() {
           onPress: async () => {
             try {
               if (params.filename) {
-                const diaryDir = new Directory(Paths.document, 'diary');
-                const file = new File(diaryDir, params.filename as string);
-                await file.delete();
-                
+                await diary.remove(params.filename as string);
+
                 // Sync deletion to WebDAV
                 webdavService.syncAfterDelete(params.filename as string);
                 
@@ -123,7 +110,7 @@ export default function EntryScreen() {
   const getFormattedDate = () => {
     let dateStr = params.date as string;
     if (!dateStr && params.filename) {
-      dateStr = (params.filename as string).split('_')[0];
+      dateStr = dateFromFilename(params.filename as string);
     }
     const date = new Date(dateStr || new Date());
     return date.toLocaleDateString('en-US', { 
