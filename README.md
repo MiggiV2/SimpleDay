@@ -63,7 +63,17 @@ SimpleDay ships to [IzzyOnDroid](https://apt.izzysoft.de/fdroid/) (an F-Droid-co
 ./build-offline.sh
 ```
 
-The script runs `expo prebuild`, injects the release signing config into the generated Gradle project, writes `android/local.properties`, then runs `gradlew assembleRelease`. The finished APK is copied to `simpleday-release.apk` in the repo root.
+The script runs `expo prebuild`, injects the release signing config and ABI splits into the generated Gradle project, writes `android/local.properties`, then runs `gradlew assembleRelease`. Those injections are undone again when the script exits, so the generated project stays usable for `npx expo run:android`.
+
+One lean APK per architecture is produced (`armeabi-v7a` and `arm64-v8a` by default) and copied to the repo root as `simpleday-<versionCode>-<arch>-release.apk`. Each split gets its own `versionCode` (`base * 1000 + arch code`, with `armeabi-v7a=1`, `arm64-v8a=2`, `x86_64=3`, `x86=4`) so it matches the F-Droid recipe's `VercodeOperation` and sideload updates line up.
+
+Override via environment variables:
+
+```bash
+ABIS="arm64-v8a" ./build-offline.sh          # single architecture
+INCLUDE_UNIVERSAL=1 ./build-offline.sh       # also emit a universal fallback APK
+OUT_DIR=~/my-fdroid/repo ./build-offline.sh  # drop straight into an F-Droid repo
+```
 
 ### Additional Prerequisites
 
