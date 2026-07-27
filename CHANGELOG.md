@@ -5,6 +5,18 @@ All notable changes to SimpleDay will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-07-27
+
+### Changed
+- Removed three permissions the app never used: `SYSTEM_ALERT_WINDOW` ("draw over
+  other apps") and read/write access to shared storage. They were merged in by the
+  React Native and expo-file-system manifests; all diary data has always lived in
+  app-private storage.
+
+### Fixed
+- F-Droid changelogs are now named after the per-ABI split versionCodes, so release
+  notes actually show up on the app page.
+
 ## [1.2.1] - 2026-07-24
 
 ### Changed

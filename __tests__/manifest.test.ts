@@ -5,6 +5,9 @@
 // `android.blockedPermissions` or it ends up in the shipped APK and shows up in
 // F-Droid's permission list.
 
+import fs from 'fs';
+import path from 'path';
+
 import appJson from '../app.json';
 
 const android = appJson.expo.android as {
@@ -36,5 +39,16 @@ describe('android manifest configuration', () => {
     expect(blocked).not.toContain('android.permission.POST_NOTIFICATIONS');
     expect(blocked).not.toContain('android.permission.USE_BIOMETRIC');
     expect(blocked).not.toContain('android.permission.RECEIVE_BOOT_COMPLETED');
+  });
+
+  it('ships a changelog for every versionCode F-Droid builds', () => {
+    // The recipe splits per ABI via `VercodeOperation: 1000 * %c + N`, so
+    // fdroidserver looks for `<base * 1000 + N>.txt`, not `<base>.txt`.
+    const dir = path.join(__dirname, '..', 'fastlane/metadata/android/en-US/changelogs');
+    for (const abiCode of [1, 2]) {
+      expect(fs.existsSync(path.join(dir, `${android.versionCode * 1000 + abiCode}.txt`))).toBe(
+        true
+      );
+    }
   });
 });
