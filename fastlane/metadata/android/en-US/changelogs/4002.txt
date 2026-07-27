@@ -1,0 +1,1 @@
+Added SPDX license headers (GPL-3.0-only) to all source files. No functional changes.
