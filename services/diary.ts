@@ -274,7 +274,10 @@ export const diary = new DiaryService();
 export async function hrefForDate(date: string): Promise<`/entry?${string}`> {
   const existing = await diary.findByDate(date);
 
+  // `edit=true` because the caller asked to *write*. Opening the read view here
+  // would make the button cost an extra tap on every day already started; tapping
+  // a card in the list still opens read-only.
   return existing
-    ? `/entry?filename=${encodeURIComponent(existing.filename)}`
+    ? `/entry?filename=${encodeURIComponent(existing.filename)}&edit=true`
     : `/entry?date=${date}&new=true`;
 }

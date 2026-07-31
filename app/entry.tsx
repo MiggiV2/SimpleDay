@@ -18,7 +18,7 @@ export default function EntryScreen() {
 
   useEffect(() => {
     loadEntry();
-  }, [params.filename, params.date]);
+  }, [params.filename, params.date, params.edit]);
 
   const loadEntry = async () => {
     try {
@@ -33,6 +33,9 @@ export default function EntryScreen() {
         const entry = await diary.read(params.filename as string);
         setContent(entry.body);
         setTitle(entry.title);
+        // Set by `hrefForDate`: the user pressed "+" or the reminder, so they
+        // came here to write, not to read.
+        setIsEditing(params.edit === 'true');
       }
     } catch (error) {
       console.error('Error loading entry:', error);

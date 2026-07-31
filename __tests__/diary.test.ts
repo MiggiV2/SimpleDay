@@ -287,7 +287,7 @@ describe('diary: href for a date', () => {
     seedLegacy('2026-07-30_Today.md', 'a');
 
     await expect(hrefForDate('2026-07-30')).resolves.toBe(
-      '/entry?filename=2026-07-30_Today.md'
+      '/entry?filename=2026-07-30_Today.md&edit=true'
     );
   });
 
@@ -295,7 +295,7 @@ describe('diary: href for a date', () => {
     seedLegacy('2026-07-30_Coffee & cake.md', 'a');
 
     await expect(hrefForDate('2026-07-30')).resolves.toBe(
-      '/entry?filename=2026-07-30_Coffee%20%26%20cake.md'
+      '/entry?filename=2026-07-30_Coffee%20%26%20cake.md&edit=true'
     );
   });
 

@@ -125,7 +125,8 @@ SimpleDay works with any WebDAV-compatible server (Nextcloud, ownCloud, etc.).
 4. Tap the checkmark to save
 
 Only one entry exists per day. If today already has one, the + button — and the
-daily reminder notification — reopen it instead of starting a second one.
+daily reminder notification — reopen it ready to edit instead of starting a
+second one. Tapping an entry in the list opens it read-only.
 
 ### Markdown Features
 
