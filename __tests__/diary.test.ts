@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 jest.mock('expo-file-system', () => require('./helpers/fakeFileSystem').createFakeFileSystem());
 
-import { diary } from '../services/diary';
+import { diary, hrefForDate } from '../services/diary';
 
 const DIARY_DIR = 'file:///doc/diary';
 
@@ -210,6 +210,63 @@ describe('diary: listing', () => {
   it('returns an empty list and creates the directory on first run', async () => {
     await expect(diary.list()).resolves.toEqual([]);
     expect(dirs.has(DIARY_DIR)).toBe(true);
+  });
+});
+
+describe('diary: one entry per day', () => {
+  it('finds the entry already written for a date', async () => {
+    seedLegacy('2026-07-30_Today.md', 'written earlier');
+
+    const existing = await diary.findByDate('2026-07-30');
+
+    expect(existing?.filename).toBe('2026-07-30_Today.md');
+    expect(existing?.title).toBe('Today');
+  });
+
+  it('returns null when the date has no entry yet', async () => {
+    seedLegacy('2026-07-29_Yesterday.md', 'a');
+
+    await expect(diary.findByDate('2026-07-30')).resolves.toBeNull();
+  });
+
+  it('returns the first of several entries that older versions left on one date', async () => {
+    seedLegacy('2026-07-30_Second.md', 'b');
+    seedLegacy('2026-07-30_First.md', 'a');
+
+    const existing = await diary.findByDate('2026-07-30');
+
+    expect(existing?.filename).toBe('2026-07-30_First.md');
+  });
+
+  it('prefers the original over the -2 duplicate an older version created', async () => {
+    seedLegacy('2026-07-30_Notes-2.md', 'the accidental second one');
+    seedLegacy('2026-07-30_Notes.md', 'the one written first');
+
+    const existing = await diary.findByDate('2026-07-30');
+
+    expect(existing?.filename).toBe('2026-07-30_Notes.md');
+  });
+});
+
+describe('diary: href for a date', () => {
+  it('points at the existing entry when the day is already written', async () => {
+    seedLegacy('2026-07-30_Today.md', 'a');
+
+    await expect(hrefForDate('2026-07-30')).resolves.toBe(
+      '/entry?filename=2026-07-30_Today.md'
+    );
+  });
+
+  it('escapes a filename containing characters the query string would eat', async () => {
+    seedLegacy('2026-07-30_Coffee & cake.md', 'a');
+
+    await expect(hrefForDate('2026-07-30')).resolves.toBe(
+      '/entry?filename=2026-07-30_Coffee%20%26%20cake.md'
+    );
+  });
+
+  it('starts a new entry when the day is still empty', async () => {
+    await expect(hrefForDate('2026-07-30')).resolves.toBe('/entry?date=2026-07-30&new=true');
   });
 });
 

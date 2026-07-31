@@ -4,7 +4,7 @@ import { useState, useCallback, memo, useEffect, useRef } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { webdavService } from '../../services/webdav';
-import { diary, DiaryEntryMeta } from '../../services/diary';
+import { diary, DiaryEntryMeta, hrefForDate } from '../../services/diary';
 import Toast from 'react-native-toast-message';
 import { Header } from '../../components/Header';
 import { EmptyState } from '../../components/EmptyState';
@@ -94,13 +94,22 @@ export default function DiaryListScreen() {
     }, [])
   );
 
-  const createNewEntry = () => {
-    const today = new Date().toISOString().split('T')[0];
-    router.push(`/entry?date=${today}&new=true`);
-  };
-
   const openEntry = useCallback((entry: DiaryEntryMeta) => {
     router.push(`/entry?filename=${encodeURIComponent(entry.filename)}`);
+  }, [router]);
+
+  // `hrefForDate` reopens today's entry when it exists, so the button cannot
+  // start a second one. It reads from disk rather than the `entries` state so a
+  // list that has not refreshed yet cannot let a duplicate through.
+  const createNewEntry = useCallback(async () => {
+    const today = new Date().toISOString().split('T')[0];
+
+    try {
+      router.push(await hrefForDate(today));
+    } catch (error) {
+      console.error('Error opening today\'s entry:', error);
+      Alert.alert('Error', 'Failed to open today\'s entry');
+    }
   }, [router]);
 
   const renderItem = useCallback(({ item }: { item: DiaryEntryMeta }) => (

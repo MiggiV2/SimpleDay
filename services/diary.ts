@@ -79,6 +79,15 @@ function unquote(value: string): string {
   }
 }
 
+/**
+ * Whether a filename looks like one `freeFilename` handed out to avoid a
+ * collision. A title genuinely ending in `-2` is indistinguishable, which only
+ * affects which same-day entry is preferred.
+ */
+function hasDuplicateSuffix(filename: string): boolean {
+  return /-\d+$/.test(filename.replace(/\.md$/, ''));
+}
+
 function toPreview(body: string): string {
   return body.substring(0, PREVIEW_LENGTH).replace(/[#*_`]/g, '').trim();
 }
@@ -181,6 +190,27 @@ class DiaryService {
     }
   }
 
+  /**
+   * The entry that already covers a date, or null. The app offers one entry per
+   * day, so the "new entry" action uses this to reopen today instead of starting
+   * a second one next to it.
+   *
+   * Versions before 1.3.0 had no such check and could leave several files on the
+   * same date, the extra ones carrying the `-2` suffix `freeFilename` hands out.
+   * Those stay readable as separate entries; this picks the unsuffixed one so the
+   * day keeps reopening whichever file was written first.
+   */
+  async findByDate(date: string): Promise<DiaryEntryMeta | null> {
+    const sameDay = (await this.list()).filter(entry => entry.date === date);
+    if (sameDay.length === 0) return null;
+
+    return sameDay.sort((a, b) => {
+      const bySuffix = Number(hasDuplicateSuffix(a.filename)) - Number(hasDuplicateSuffix(b.filename));
+      if (bySuffix !== 0) return bySuffix;
+      return a.filename < b.filename ? -1 : 1;
+    })[0];
+  }
+
   async remove(filename: string): Promise<void> {
     const diaryDir = await this.dir();
     const file = new File(diaryDir, filename);
@@ -203,3 +233,19 @@ class DiaryService {
 }
 
 export const diary = new DiaryService();
+
+/**
+ * Where the "write an entry for this day" action should navigate. Reopens the
+ * day's existing entry when there is one, so neither the "+" button nor the
+ * daily reminder can start a second entry for a day that is already written.
+ *
+ * Typed as the `/entry?…` template so `typedRoutes` accepts it without this
+ * module having to depend on expo-router.
+ */
+export async function hrefForDate(date: string): Promise<`/entry?${string}`> {
+  const existing = await diary.findByDate(date);
+
+  return existing
+    ? `/entry?filename=${encodeURIComponent(existing.filename)}`
+    : `/entry?date=${date}&new=true`;
+}
