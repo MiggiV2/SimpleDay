@@ -1,6 +1,15 @@
 Fixed: a day could end up with two entries. Tapping + or the daily reminder
-now reopens today's entry instead of starting a second one. Entries an older
-version already duplicated are kept as they are.
+now reopens today's entry instead of starting a second one.
 
-Removed 20 launcher-badge permissions (Samsung, HTC, Sony, Huawei, Oppo and
-others) that came from a notification library. SimpleDay never sets a badge.
+Fixed: WebDAV sync over plain http:// was blocked by Android and reported as a
+generic connection error. Self-hosted servers on a LAN work again.
+
+Fixed: entries started just after midnight were filed under the previous day.
+
+Security: WebDAV entries are now authenticated with HMAC-SHA256, so a malicious
+server can no longer alter them unnoticed. Existing entries stay readable and
+are upgraded when you next save them. The settings screen warns when a http://
+server is used, because WebDAV credentials are not encrypted in transit.
+
+Removed 20 launcher-badge permissions that came from a notification library.
+SimpleDay never sets a badge.

@@ -10,9 +10,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - A day could end up with two entries: with today's entry already saved, the `+`
   button still opened an empty editor for the same date. Both entry points — the
-  button and the daily reminder notification — now reopen the existing entry.
+  button and the daily reminder notification — now reopen the existing entry,
+  ready to edit. Tapping an entry in the list still opens it read-only.
   Duplicates an older version created are left untouched and stay readable; the
   day reopens whichever file was written first.
+
+- WebDAV sync over plain `http://` could not work at all. With `targetSdk 36` and
+  no cleartext policy in the manifest, Android blocked the connection before it
+  left the device, and `fetch` reported it as a generic "Network request failed" —
+  so the dialog blamed the URL and credentials. Self-hosted servers on a LAN are
+  reachable again, and the failure now names cleartext as the cause when it is.
+- Entries started between midnight and the UTC offset were filed under the
+  previous day, because the date came from `toISOString()`. Dates are now taken
+  in the device's timezone, both when creating an entry and when displaying one.
+
+### Security
+- WebDAV entries are now authenticated with HMAC-SHA256 over the ciphertext
+  (encrypt-then-MAC), using a key derived separately from the encryption key. A
+  malicious or compromised WebDAV server could previously alter stored entries;
+  only PKCS#7 padding stood in the way, which lets most tampering through.
+  Existing entries stay readable and are rewritten in the new format on save.
+- Corrected the encryption documentation, which claimed "AES-256-CBC with
+  PBKDF2". No KDF was ever involved — the stored key is already 256 random bits.
+  The unused per-entry salt is no longer written.
+- Entry contents are encrypted before upload, but WebDAV credentials travel in a
+  Basic auth header. The settings screen now warns about this when the server URL
+  is `http://`.
 
 ### Changed
 - Removed 20 launcher-badge permissions (`com.sec.android.provider.badge.*`,
