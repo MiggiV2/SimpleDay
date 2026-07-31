@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { storage } from '../../services/storage';
 import { crypto } from '../../services/crypto';
+import { isCleartextUrl, describeConnectionFailure } from '../../services/webdav';
 import { notificationService } from '../../services/notifications';
 import { appLock } from '../../services/appLock';
 import { diary } from '../../services/diary';
@@ -164,7 +165,7 @@ export default function SettingsScreen() {
         Alert.alert('Connection Failed', `Server returned status: ${response.status}`);
       }
     } catch (error) {
-      Alert.alert('Connection Failed', 'Could not reach WebDAV server. Please check your URL and credentials.');
+      Alert.alert('Connection Failed', describeConnectionFailure(error, url));
       console.error('WebDAV verification error:', error);
     } finally {
       setIsVerifying(false);
@@ -410,6 +411,15 @@ export default function SettingsScreen() {
                 keyboardType="url"
               />
 
+              {isCleartextUrl(url) && (
+                <Text style={styles.cleartextWarning}>
+                  This server is contacted over plain HTTP. Entry contents are
+                  encrypted before upload, but your WebDAV username and password
+                  are not — anyone on the same network can read them. Use https://
+                  if your server supports it.
+                </Text>
+              )}
+
               <Input
                 label="Username"
                 value={username}
@@ -578,6 +588,15 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: 12,
+  },
+  cleartextWarning: {
+    fontSize: 13,
+    color: '#8a5000',
+    backgroundColor: '#fff4e0',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    lineHeight: 18,
   },
 });
 

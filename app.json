@@ -80,6 +80,14 @@
         {
           "faceIDPermission": "Allow SimpleDay to use Face ID to unlock the app."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
       ]
     ],
     "experiments": {

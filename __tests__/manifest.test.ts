@@ -77,6 +77,20 @@ describe('android manifest configuration', () => {
     expect(blocked).not.toContain('android.permission.RECEIVE_BOOT_COMPLETED');
   });
 
+  it('allows cleartext traffic so self-hosted http servers are reachable', () => {
+    // targetSdk 36 means Android's default network security config forbids
+    // cleartext, and `fetch` reports that as a bare "Network request failed".
+    // Self-hosters running WebDAV over http on their LAN could not sync at all.
+    // The debug manifest sets this anyway for Metro, so without it the failure
+    // only appears in release builds.
+    const buildProperties = (appJson.expo.plugins as unknown[]).find(
+      (plugin): plugin is [string, { android?: { usesCleartextTraffic?: boolean } }] =>
+        Array.isArray(plugin) && plugin[0] === 'expo-build-properties'
+    );
+
+    expect(buildProperties?.[1]?.android?.usesCleartextTraffic).toBe(true);
+  });
+
   it('ships a changelog for every versionCode F-Droid builds', () => {
     // The recipe splits per ABI via `VercodeOperation: 1000 * %c + N`, so
     // fdroidserver looks for `<base * 1000 + N>.txt`, not `<base>.txt`.

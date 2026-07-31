@@ -26,7 +26,7 @@ jest.mock('../services/crypto', () => ({
   },
 }));
 
-import { webdavService, WebDAVConfig } from '../services/webdav';
+import { webdavService, WebDAVConfig, isCleartextUrl, describeConnectionFailure } from '../services/webdav';
 
 const DIARY_DIR = 'file:///doc/diary';
 const AUTH = `Basic ${btoa('user:pw')}`;
@@ -411,5 +411,54 @@ describe('webdav: sync status', () => {
     fetchMock.mockResolvedValue(ok(propfindBody(['/diary/both.md']), 207));
 
     await expect(webdavService.checkSyncStatus()).resolves.toMatchObject({ inSync: true });
+  });
+});
+
+describe('webdav: cleartext URLs', () => {
+  it('flags a plain http URL', () => {
+    expect(isCleartextUrl('http://10.0.2.2:8085/remote.php/dav/')).toBe(true);
+  });
+
+  it('does not flag https', () => {
+    expect(isCleartextUrl('https://cloud.example.org/remote.php/dav/')).toBe(false);
+  });
+
+  it('ignores case and leading whitespace the way a pasted URL arrives', () => {
+    expect(isCleartextUrl('  HTTP://nas.local/dav')).toBe(true);
+    expect(isCleartextUrl('  HTTPS://nas.local/dav')).toBe(false);
+  });
+
+  it('does not flag a host that merely starts with http', () => {
+    expect(isCleartextUrl('https://http-proxy.example.org/dav')).toBe(false);
+  });
+
+  it('treats a URL with no scheme as not cleartext', () => {
+    // Nothing to warn about yet — the user is still typing.
+    expect(isCleartextUrl('nas.local/dav')).toBe(false);
+    expect(isCleartextUrl('')).toBe(false);
+  });
+});
+
+describe('webdav: connection failure messages', () => {
+  const networkError = new TypeError('Network request failed');
+
+  it('names cleartext as the cause when the URL is http', () => {
+    const message = describeConnectionFailure(networkError, 'http://10.0.2.2:8085/dav');
+
+    expect(message).toMatch(/HTTP/);
+    expect(message).not.toMatch(/credentials/i);
+  });
+
+  it('falls back to URL and credentials for an https failure', () => {
+    const message = describeConnectionFailure(networkError, 'https://cloud.example.org/dav');
+
+    expect(message).toMatch(/credentials/i);
+  });
+
+  it('reports an HTTP status instead of guessing when the server answered', () => {
+    const message = describeConnectionFailure(new Error('Upload failed: 401'), 'http://nas.local/dav');
+
+    // The server replied, so cleartext plainly is not the problem.
+    expect(message).not.toMatch(/cleartext/i);
   });
 });

@@ -19,6 +19,39 @@ export interface SyncResult {
   errors: string[];
 }
 
+/**
+ * Whether a server URL would travel unencrypted.
+ *
+ * Worth surfacing even though the app permits cleartext: the diary bodies are
+ * encrypted before upload, but the Basic auth header is not, so an http server
+ * hands the WebDAV credentials to anyone on the same network.
+ */
+export function isCleartextUrl(url: string): boolean {
+  return /^http:\/\//i.test(url.trim());
+}
+
+/**
+ * A connection failure explained in terms of what actually went wrong.
+ *
+ * `fetch` reports Android's cleartext block as a bare `TypeError: Network
+ * request failed`, indistinguishable from an unreachable host. Pointing the user
+ * at their URL and password in that case sends them looking in the wrong place,
+ * so an http URL that never got a reply is called out for what it usually is.
+ */
+export function describeConnectionFailure(error: unknown, url: string): string {
+  const reachedServer = error instanceof Error && /\b\d{3}\b/.test(error.message);
+
+  if (!reachedServer && isCleartextUrl(url)) {
+    return (
+      'Could not reach the WebDAV server over plain HTTP. Android blocks ' +
+      'unencrypted connections unless the app allows them, and some networks ' +
+      'block them outright. Try an https:// URL if your server offers one.'
+    );
+  }
+
+  return 'Could not reach WebDAV server. Please check your URL and credentials.';
+}
+
 class WebDAVService {
   private async getConfig(): Promise<WebDAVConfig | null> {
     try {

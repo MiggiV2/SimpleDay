@@ -19,6 +19,7 @@
     "@types/crypto-js": "^4.2.2",
     "crypto-js": "^4.2.0",
     "expo": "~54.0.23",
+    "expo-build-properties": "~1.0.10",
     "expo-clipboard": "^8.0.7",
     "expo-crypto": "^15.0.7",
     "expo-file-system": "^19.0.17",
