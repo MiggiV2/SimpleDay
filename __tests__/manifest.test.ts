@@ -15,6 +15,30 @@ const android = appJson.expo.android as {
   versionCode: number;
 };
 
+/** Every `<uses-permission>` in ShortcutBadger 1.1.22's AndroidManifest.xml. */
+const BADGE_PERMISSIONS = [
+  'android.permission.READ_APP_BADGE',
+  'com.anddoes.launcher.permission.UPDATE_COUNT',
+  'com.android.launcher.permission.INSTALL_SHORTCUT',
+  'com.android.launcher.permission.READ_SETTINGS',
+  'com.android.launcher.permission.UNINSTALL_SHORTCUT',
+  'com.android.launcher.permission.WRITE_SETTINGS',
+  'com.htc.launcher.permission.READ_SETTINGS',
+  'com.htc.launcher.permission.UPDATE_SHORTCUT',
+  'com.huawei.android.launcher.permission.CHANGE_BADGE',
+  'com.huawei.android.launcher.permission.READ_SETTINGS',
+  'com.huawei.android.launcher.permission.WRITE_SETTINGS',
+  'com.majeur.launcher.permission.UPDATE_BADGE',
+  'com.oppo.launcher.permission.READ_SETTINGS',
+  'com.oppo.launcher.permission.WRITE_SETTINGS',
+  'com.sec.android.provider.badge.permission.READ',
+  'com.sec.android.provider.badge.permission.WRITE',
+  'com.sonyericsson.home.permission.BROADCAST_BADGE',
+  'com.sonymobile.home.permission.PROVIDER_INSERT_BADGE',
+  'me.everything.badger.permission.BADGE_COUNT_READ',
+  'me.everything.badger.permission.BADGE_COUNT_WRITE',
+];
+
 describe('android manifest configuration', () => {
   const blocked = android.blockedPermissions ?? [];
 
@@ -32,6 +56,18 @@ describe('android manifest configuration', () => {
     // shared storage.
     expect(blocked).toContain('android.permission.READ_EXTERNAL_STORAGE');
     expect(blocked).toContain('android.permission.WRITE_EXTERNAL_STORAGE');
+  });
+
+  it('blocks every launcher-badge permission ShortcutBadger declares', () => {
+    // `me.leolin:ShortcutBadger:1.1.22@aar`, pulled in by expo-notifications
+    // (its android/build.gradle), declares one permission per launcher vendor it
+    // knows how to poke. SimpleDay never sets a badge — the notification handler
+    // returns `shouldSetBadge: false` — so all of them are dead weight, and
+    // F-Droid renders them as a wall of scary vendor permissions on the app page.
+    // Sourced from the AAR's own AndroidManifest.xml, not from the merged output,
+    // so a ShortcutBadger bump that adds a vendor makes this list stale rather
+    // than silently shipping a new permission.
+    expect(blocked).toEqual(expect.arrayContaining(BADGE_PERMISSIONS));
   });
 
   it('keeps the permissions the app genuinely needs', () => {
