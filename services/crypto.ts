@@ -3,8 +3,15 @@ import * as ExpoCrypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import CryptoJS from 'crypto-js';
 
-// Modern AES-256-CBC encryption for WebDAV backups
-// Secure storage using platform keystore (iOS Keychain, Android Keystore)
+// AES-256-CBC + HMAC-SHA256 (encrypt-then-MAC) for WebDAV backups.
+// Secure storage using platform keystore (iOS Keychain, Android Keystore).
+
+/** Envelope written since 1.3.0: `v2:iv:ciphertext:mac`, all base64 but the tag. */
+const V2_PREFIX = 'v2';
+// Distinct label per derived key so the encryption key and the MAC key can never
+// coincide. Changing a label invalidates every file written with the old one.
+const ENC_KEY_LABEL = 'SimpleDay/webdav/enc/v2';
+const MAC_KEY_LABEL = 'SimpleDay/webdav/mac/v2';
 
 class CryptoService {
   // Legacy XOR key for backward compatibility (migration only)
@@ -115,7 +122,13 @@ class CryptoService {
     }
   }
 
-  // ===== WebDAV Encryption (AES-256-CBC with PBKDF2) =====
+  // ===== WebDAV Encryption (AES-256-CBC, encrypt-then-HMAC-SHA256) =====
+  //
+  // No password-based KDF is involved. `generateEncryptionKey` already returns
+  // 256 bits from the system CSPRNG, so there is nothing to stretch — versions up
+  // to 1.2.2 claimed PBKDF2 in this comment and wrote a random salt into every
+  // envelope that no code ever read. The two subkeys below are derived from that
+  // key with HMAC, which is domain separation, not key stretching.
 
   /**
    * Generate a secure random encryption key (256-bit)
@@ -149,35 +162,55 @@ class CryptoService {
   }
 
   /**
-   * Encrypt content using AES-256-CBC
+   * Derive the encryption and authentication subkeys from the stored key.
+   * Separate labels mean a MAC can never be computed with the key that encrypts,
+   * so the two uses cannot be played off against each other.
+   */
+  private deriveKeys(encryptionKey: string): {
+    encKey: CryptoJS.lib.WordArray;
+    macKey: CryptoJS.lib.WordArray;
+  } {
+    const master = CryptoJS.enc.Base64.parse(encryptionKey);
+
+    return {
+      encKey: CryptoJS.HmacSHA256(ENC_KEY_LABEL, master),
+      macKey: CryptoJS.HmacSHA256(MAC_KEY_LABEL, master),
+    };
+  }
+
+  /** Authentication tag over everything in the envelope except the tag itself. */
+  private authTag(signedPart: string, macKey: CryptoJS.lib.WordArray): string {
+    return CryptoJS.enc.Base64.stringify(CryptoJS.HmacSHA256(signedPart, macKey));
+  }
+
+  /**
+   * Encrypt content with AES-256-CBC and authenticate it with HMAC-SHA256.
+   *
+   * The MAC covers the version tag, the IV and the ciphertext, so a WebDAV server
+   * cannot flip bits, swap IVs or downgrade the envelope without detection.
+   *
    * @param plaintext - The content to encrypt
    * @param encryptionKey - Base64-encoded encryption key (256-bit)
-   * @returns Base64-encoded encrypted data with IV and salt
+   * @returns `v2:iv:ciphertext:mac`
    */
   async encryptContent(plaintext: string, encryptionKey: string): Promise<string> {
     try {
-      // Generate random IV (16 bytes for CBC)
+      const { encKey, macKey } = this.deriveKeys(encryptionKey);
+
+      // Random IV (16 bytes for CBC)
       const ivBytes = await ExpoCrypto.getRandomBytesAsync(16);
       const iv = this.arrayBufferToBase64(ivBytes);
-      
-      // Generate random salt for PBKDF2
-      const saltBytes = await ExpoCrypto.getRandomBytesAsync(16);
-      const salt = this.arrayBufferToBase64(saltBytes);
 
-      // Convert base64 key and IV to WordArray for CryptoJS
-      const keyWordArray = CryptoJS.enc.Base64.parse(encryptionKey);
-      const ivWordArray = CryptoJS.enc.Base64.parse(iv);
-
-      // Encrypt using AES-256-CBC
-      const encrypted = CryptoJS.AES.encrypt(plaintext, keyWordArray, {
-        iv: ivWordArray,
+      const encrypted = CryptoJS.AES.encrypt(plaintext, encKey, {
+        iv: CryptoJS.enc.Base64.parse(iv),
         mode: CryptoJS.mode.CBC,
         padding: CryptoJS.pad.Pkcs7
       });
 
-      // Combine salt + iv + encrypted data (all base64)
-      // Format: salt:iv:ciphertext
-      return `${salt}:${iv}:${encrypted.toString()}`;
+      // Encrypt-then-MAC: authenticate the finished ciphertext, never the plaintext.
+      const signedPart = `${V2_PREFIX}:${iv}:${encrypted.toString()}`;
+
+      return `${signedPart}:${this.authTag(signedPart, macKey)}`;
     } catch (error) {
       console.error('Encryption error:', error);
       throw new Error('Failed to encrypt content');
@@ -185,40 +218,81 @@ class CryptoService {
   }
 
   /**
-   * Decrypt content using AES-256-CBC
-   * @param ciphertext - Base64-encoded encrypted data with IV and salt
+   * Decrypt a `v2:iv:ciphertext:mac` envelope, or a `salt:iv:ciphertext` one
+   * written by 1.2.2 and earlier.
+   *
+   * v2 verifies the MAC before touching the ciphertext. v1 has no MAC to verify —
+   * it is read so existing WebDAV files keep opening, and every save rewrites the
+   * entry as v2. Support for it can go once no v1 files are left on any server.
+   *
+   * @param ciphertext - The stored envelope
    * @param encryptionKey - Base64-encoded encryption key (256-bit)
    * @returns Decrypted plaintext
    */
   async decryptContent(ciphertext: string, encryptionKey: string): Promise<string> {
     try {
-      // Split the combined format
       const parts = ciphertext.split(':');
+
+      if (parts[0] === V2_PREFIX) {
+        if (parts.length !== 4) {
+          throw new Error('Invalid encrypted format');
+        }
+
+        const [, iv, encrypted, mac] = parts;
+        const { encKey, macKey } = this.deriveKeys(encryptionKey);
+        const expected = this.authTag(`${V2_PREFIX}:${iv}:${encrypted}`, macKey);
+
+        // Reject before decrypting: an unauthenticated ciphertext is attacker
+        // input and must not be fed to AES at all.
+        if (!this.constantTimeEquals(mac, expected)) {
+          throw new Error('Authentication failed');
+        }
+
+        return this.decryptCbc(encrypted, encKey, iv);
+      }
+
       if (parts.length !== 3) {
         throw new Error('Invalid encrypted format');
       }
 
-      // parts[0] is the salt, kept in the envelope for backward compatibility
+      // v1: parts[0] is the vestigial salt, and the stored key was used directly.
       const [, iv, encrypted] = parts;
 
-      // Convert base64 key and IV to WordArray for CryptoJS
-      const keyWordArray = CryptoJS.enc.Base64.parse(encryptionKey);
-      const ivWordArray = CryptoJS.enc.Base64.parse(iv);
-
-      // Decrypt using AES-256-CBC. Padding is removed manually below: CryptoJS
-      // strips it without validating it, which turns a wrong key into an empty
-      // string instead of an error.
-      const decrypted = CryptoJS.AES.decrypt(encrypted, keyWordArray, {
-        iv: ivWordArray,
-        mode: CryptoJS.mode.CBC,
-        padding: CryptoJS.pad.NoPadding
-      });
-
-      return this.stripPkcs7Padding(decrypted).toString(CryptoJS.enc.Utf8);
+      return this.decryptCbc(encrypted, CryptoJS.enc.Base64.parse(encryptionKey), iv);
     } catch (error) {
       console.error('Decryption error:', error);
       throw new Error('Failed to decrypt content. Wrong encryption key?');
     }
+  }
+
+  /**
+   * AES-256-CBC decryption with validated padding. CryptoJS strips PKCS#7 without
+   * checking it, which turns a wrong key into an empty string instead of an error.
+   */
+  private decryptCbc(encrypted: string, key: CryptoJS.lib.WordArray, iv: string): string {
+    const decrypted = CryptoJS.AES.decrypt(encrypted, key, {
+      iv: CryptoJS.enc.Base64.parse(iv),
+      mode: CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.NoPadding
+    });
+
+    return this.stripPkcs7Padding(decrypted).toString(CryptoJS.enc.Utf8);
+  }
+
+  /**
+   * Compare two base64 tags without an early exit, so the time taken does not
+   * reveal how many leading bytes a forged tag got right. Length is not secret:
+   * both are always a base64 SHA-256.
+   */
+  private constantTimeEquals(a: string, b: string): boolean {
+    if (a.length !== b.length) return false;
+
+    let diff = 0;
+    for (let i = 0; i < a.length; i++) {
+      diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+
+    return diff === 0;
   }
 
   // ===== Helper Methods =====

@@ -164,7 +164,16 @@ SimpleDay supports standard Markdown:
 ## Privacy & Security
 
 - **Local-first** - all data stored on your device
-- **Encrypted passwords** - WebDAV credentials obfuscated
+- **Credentials in the platform keystore** - the WebDAV password and the backup
+  encryption key are held by iOS Keychain / Android Keystore via `expo-secure-store`,
+  not in app config
+- **Authenticated backup encryption** - entries uploaded to WebDAV are encrypted
+  with AES-256-CBC and authenticated with HMAC-SHA256 over the ciphertext, so a
+  compromised server cannot alter them undetected. The key is 256 random bits from
+  the system CSPRNG; no password-based KDF is involved
+  > Note: over a plain `http://` server the entry contents are still encrypted, but
+  > the WebDAV username and password travel in a Basic auth header that anyone on
+  > the same network can read. Prefer `https://`.
 - **App Lock** - optional biometric/PIN gate (Face ID, fingerprint, or device passcode via `expo-local-authentication`) that locks the app on cold start and whenever it's backgrounded
   > Note: App Lock only gates the UI — it does **not** encrypt your diary entries at rest. For encryption, enable WebDAV backup encryption above.
 - **No tracking** - zero analytics or data collection
