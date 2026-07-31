@@ -5,6 +5,22 @@ All notable changes to SimpleDay will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-07-31
+
+### Fixed
+- A day could end up with two entries: with today's entry already saved, the `+`
+  button still opened an empty editor for the same date. Both entry points — the
+  button and the daily reminder notification — now reopen the existing entry.
+  Duplicates an older version created are left untouched and stay readable; the
+  day reopens whichever file was written first.
+
+### Changed
+- Removed 20 launcher-badge permissions (`com.sec.android.provider.badge.*`,
+  `com.htc.launcher.*`, `com.sonyericsson.home.*`, `com.huawei.android.launcher.*`,
+  `com.oppo.launcher.*`, `me.everything.badger.*` and others). They come from the
+  ShortcutBadger AAR that `expo-notifications` depends on; SimpleDay never sets a
+  badge.
+
 ## [1.2.2] - 2026-07-27
 
 ### Changed
