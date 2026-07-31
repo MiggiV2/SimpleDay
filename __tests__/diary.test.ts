@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 jest.mock('expo-file-system', () => require('./helpers/fakeFileSystem').createFakeFileSystem());
 
-import { diary, hrefForDate } from '../services/diary';
+import { diary, hrefForDate, localDateString, parseLocalDate } from '../services/diary';
 
 const DIARY_DIR = 'file:///doc/diary';
 
@@ -245,6 +245,40 @@ describe('diary: one entry per day', () => {
     const existing = await diary.findByDate('2026-07-30');
 
     expect(existing?.filename).toBe('2026-07-30_Notes.md');
+  });
+});
+
+// The suite runs pinned to Europe/Berlin (see jest.config.js).
+describe('diary: local date', () => {
+  it('uses the writer\'s day, not the UTC day, just after midnight', () => {
+    // 00:30 on August 1st in CEST is still 22:30 on July 31st in UTC. An entry
+    // started then belongs to August 1st — `toISOString()` would say July 31st.
+    expect(localDateString(new Date('2026-08-01T00:30:00+02:00'))).toBe('2026-08-01');
+  });
+
+  it('holds across the new year in winter time', () => {
+    // 00:30 on January 1st in CET is 23:30 on December 31st in UTC, so the bug
+    // would move the entry into the previous year as well as the previous day.
+    expect(localDateString(new Date('2026-01-01T00:30:00+01:00'))).toBe('2026-01-01');
+  });
+
+  it('pads month and day to two digits', () => {
+    expect(localDateString(new Date('2026-01-05T12:00:00+01:00'))).toBe('2026-01-05');
+  });
+
+  it('parses a stored date back to local midnight, not UTC midnight', () => {
+    // `new Date('2026-07-31')` is UTC midnight, which renders as July 30th for
+    // anyone west of Greenwich. Entry cards would show the wrong weekday.
+    const parsed = parseLocalDate('2026-07-31');
+
+    expect(parsed.getFullYear()).toBe(2026);
+    expect(parsed.getMonth()).toBe(6);
+    expect(parsed.getDate()).toBe(31);
+    expect(parsed.getHours()).toBe(0);
+  });
+
+  it('round-trips a date through parse and format', () => {
+    expect(localDateString(parseLocalDate('2026-01-01'))).toBe('2026-01-01');
   });
 });
 

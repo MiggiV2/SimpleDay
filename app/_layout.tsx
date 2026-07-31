@@ -6,7 +6,7 @@ import Toast from 'react-native-toast-message';
 import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import { AppLockGate } from '../components/AppLockGate';
-import { hrefForDate } from '../services/diary';
+import { hrefForDate, localDateString } from '../services/diary';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -27,7 +27,7 @@ export default function RootLayout() {
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data;
       if (data?.screen === 'new-entry') {
-        const today = new Date().toISOString().split('T')[0];
+        const today = localDateString();
         // Reopens today's entry when the reminder fires after it was written.
         hrefForDate(today)
           .then(href => router.push(href))

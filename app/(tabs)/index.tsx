@@ -4,7 +4,7 @@ import { useState, useCallback, memo, useEffect, useRef } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { webdavService } from '../../services/webdav';
-import { diary, DiaryEntryMeta, hrefForDate } from '../../services/diary';
+import { diary, DiaryEntryMeta, hrefForDate, localDateString, parseLocalDate } from '../../services/diary';
 import Toast from 'react-native-toast-message';
 import { Header } from '../../components/Header';
 import { EmptyState } from '../../components/EmptyState';
@@ -14,7 +14,7 @@ import { Button } from '../../components/Button';
 // Memoized entry card component for better performance
 const EntryCard = memo(({ item, onPress }: { item: DiaryEntryMeta; onPress: () => void }) => {
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = parseLocalDate(dateStr);
     return date.toLocaleDateString('en-US', { 
       weekday: 'long', 
       year: 'numeric', 
@@ -102,7 +102,7 @@ export default function DiaryListScreen() {
   // start a second one. It reads from disk rather than the `entries` state so a
   // list that has not refreshed yet cannot let a duplicate through.
   const createNewEntry = useCallback(async () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localDateString();
 
     try {
       router.push(await hrefForDate(today));

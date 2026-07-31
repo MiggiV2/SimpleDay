@@ -35,6 +35,35 @@ const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n){0,2}/;
 const FRONT_MATTER_LINE = /^[A-Za-z][\w-]*:\s/;
 const PREVIEW_LENGTH = 100;
 
+/**
+ * A date as `YYYY-MM-DD` in the device's timezone.
+ *
+ * Not `toISOString()`: that formats in UTC, so east of Greenwich the hours right
+ * after local midnight still carry the previous date. An entry started at 00:30
+ * in Berlin would be filed under yesterday — and, with one entry per day, would
+ * reopen yesterday's entry instead of starting today's.
+ */
+export function localDateString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * A stored `YYYY-MM-DD` entry date as a Date at local midnight, for display.
+ *
+ * The inverse problem to `localDateString`: `new Date('2026-07-31')` is parsed
+ * as UTC midnight, so west of Greenwich it renders as the previous day and the
+ * entry card shows the wrong weekday.
+ */
+export function parseLocalDate(date: string): Date {
+  const [year, month, day] = date.split('-').map(Number);
+
+  return new Date(year, month - 1, day);
+}
+
 /** Title of a legacy entry, derived from `DATE_title.md`. */
 export function titleFromFilename(filename: string): string {
   const parts = filename.replace(/\.md$/, '').split('_');

@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Markdown from 'react-native-markdown-display';
 import Toast from 'react-native-toast-message';
 import { webdavService } from '../services/webdav';
-import { diary, dateFromFilename } from '../services/diary';
+import { diary, dateFromFilename, parseLocalDate, localDateString } from '../services/diary';
 
 export default function EntryScreen() {
   const params = useLocalSearchParams();
@@ -112,7 +112,7 @@ export default function EntryScreen() {
     if (!dateStr && params.filename) {
       dateStr = dateFromFilename(params.filename as string);
     }
-    const date = new Date(dateStr || new Date());
+    const date = parseLocalDate(dateStr || localDateString());
     return date.toLocaleDateString('en-US', { 
       weekday: 'long', 
       year: 'numeric', 
