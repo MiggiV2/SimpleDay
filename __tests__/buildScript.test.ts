@@ -52,6 +52,32 @@ describe('build-offline.sh ABI handling', () => {
     expect(script).toContain('libappmodules.so');
   });
 
+  it('strips the Play Install Referrer library out of expo-application', () => {
+    // expo-application declares `com.android.installreferrer:installreferrer` for
+    // its getInstallReferrerAsync(), which SimpleDay never calls. It is a
+    // proprietary Google Play library, so the F-Droid recipe deletes it before
+    // building. Doing the same here keeps the GitHub artifact identical to the
+    // F-Droid one — otherwise a reviewer scanning the GitHub APK reports a Play
+    // Install Referrer dependency that the shipped F-Droid build does not have.
+    expect(script).toContain('installreferrer');
+    expect(script).toContain('getInstallReferrerAsync');
+  });
+
+  it('compiles expo-application from source so the patch takes effect', () => {
+    // Expo autolinking resolves modules to prebuilt AARs by default, and the AAR
+    // already carries the dependency — patching node_modules sources changes
+    // nothing until the module is built from source. The F-Droid recipe sets the
+    // same `buildFromSource` autolinking flag for exactly this reason.
+    expect(script).toContain('buildFromSource');
+  });
+
+  it('restores the patched node_modules files when it exits', () => {
+    // The patch lives in node_modules, which every other command in the repo
+    // shares. Leaving it behind would silently change `npx expo run:android`.
+    expect(script).toMatch(/PRISTINE_APPLICATION_MODULE/);
+    expect(script).toMatch(/PRISTINE_APPLICATION_GRADLE/);
+  });
+
   it('knows a versionCode suffix for every ABI it builds by default', () => {
     // A missing suffix silently produces `simpleday-unknown-<abi>-release.apk`
     // and an APK whose versionCode does not line up with the F-Droid recipe.

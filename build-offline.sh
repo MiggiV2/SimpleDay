@@ -84,6 +84,58 @@ if [ ! -f "keystore.properties" ]; then
     exit 1
 fi
 
+# Drop the Play Install Referrer library before prebuild. expo-application
+# declares `com.android.installreferrer:installreferrer` for its
+# getInstallReferrerAsync(), which SimpleDay never calls. It is a proprietary
+# Google Play component, and the F-Droid recipe removes it the same way — without
+# this, the GitHub APK carries classes the F-Droid build does not, and reviewers
+# scanning the wrong artifact report a Play Install Referrer dependency.
+# node_modules is shared with every other command in the repo, so both files are
+# put back on exit.
+APPLICATION_GRADLE="node_modules/expo-application/android/build.gradle"
+APPLICATION_MODULE="node_modules/expo-application/android/src/main/java/expo/modules/application/ApplicationModule.kt"
+PRISTINE_APPLICATION_GRADLE="$(mktemp)"
+PRISTINE_APPLICATION_MODULE="$(mktemp)"
+PRISTINE_PACKAGE_JSON="$(mktemp)"
+
+restore_expo_application() {
+    local status=$?
+    [ -s "$PRISTINE_APPLICATION_GRADLE" ] && cp "$PRISTINE_APPLICATION_GRADLE" "$REPO_ROOT/$APPLICATION_GRADLE"
+    [ -s "$PRISTINE_APPLICATION_MODULE" ] && cp "$PRISTINE_APPLICATION_MODULE" "$REPO_ROOT/$APPLICATION_MODULE"
+    [ -s "$PRISTINE_PACKAGE_JSON" ] && cp "$PRISTINE_PACKAGE_JSON" "$REPO_ROOT/package.json"
+    rm -f "$PRISTINE_APPLICATION_GRADLE" "$PRISTINE_APPLICATION_MODULE" "$PRISTINE_PACKAGE_JSON"
+    return $status
+}
+trap restore_expo_application EXIT
+
+echo -e "${BLUE}🧽 Removing the Play Install Referrer dependency...${NC}"
+cp "$APPLICATION_GRADLE" "$PRISTINE_APPLICATION_GRADLE"
+cp "$APPLICATION_MODULE" "$PRISTINE_APPLICATION_MODULE"
+cp package.json "$PRISTINE_PACKAGE_JSON"
+
+# Autolinking resolves expo modules to prebuilt AARs, and that AAR already
+# carries the dependency — the patch below only lands if the module is compiled
+# from source. The F-Droid recipe sets the same flag (for every module).
+node -e '
+const fs = require("fs");
+const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+pkg.expo = pkg.expo ?? {};
+pkg.expo.autolinking = pkg.expo.autolinking ?? {};
+pkg.expo.autolinking.android = pkg.expo.autolinking.android ?? {};
+pkg.expo.autolinking.android.buildFromSource = ["expo-application"];
+fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+'
+
+sed -i '/installreferrer/d' "$APPLICATION_GRADLE"
+sed -i -e '/import com.android.installreferrer/d' \
+    -e '/import android.os.RemoteException/d' \
+    -e '/getInstallReferrerAsync/,/^    }$/d' "$APPLICATION_MODULE"
+
+if grep -q "installreferrer" "$APPLICATION_GRADLE" "$APPLICATION_MODULE"; then
+    echo -e "${RED}❌ Failed to remove the Play Install Referrer dependency from expo-application.${NC}"
+    exit 1
+fi
+
 # Clean previous build
 echo -e "${BLUE}🧹 Cleaning previous Android build...${NC}"
 rm -rf android
@@ -111,6 +163,9 @@ restore_gradle() {
         cp "$PRISTINE_PROPS" "$REPO_ROOT/$PROPS_FILE"
     fi
     rm -f "$PRISTINE_GRADLE" "$PRISTINE_PROPS"
+    # A second `trap ... EXIT` replaces the first one, so the node_modules
+    # restore has to be chained in here rather than registered separately.
+    restore_expo_application
     return $status
 }
 trap restore_gradle EXIT

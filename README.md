@@ -67,6 +67,8 @@ The script runs `expo prebuild`, injects the release signing config and ABI spli
 
 One lean APK per architecture is produced (`armeabi-v7a`, `arm64-v8a` and `x86_64` by default) and copied to the repo root as `simpleday-<versionCode>-<arch>-release.apk`. Each split gets its own `versionCode` (`base * 1000 + arch code`, with `armeabi-v7a=1`, `arm64-v8a=2`, `x86_64=3`, `x86=4`) so it matches the F-Droid recipe's `VercodeOperation` and sideload updates line up.
 
+The script also removes the Play Install Referrer dependency that `expo-application` declares for its `getInstallReferrerAsync()`, which SimpleDay never calls. `expo-application` is compiled from source for that build so the patch takes effect, and both files plus `package.json` are restored on exit. The F-Droid recipe does the same, so the two builds produce the same set of classes and a scanner run against either APK reports the same result.
+
 Packaging is pinned to the ABIs that are actually compiled (`ndk.abiFilters`), and every produced APK is checked for a `libappmodules.so` in each `lib/<abi>/` it ships. Without that, a universal APK silently picks up the prebuilt x86 libraries that ship inside the AARs while the app's own compiled libraries are missing — it installs on those devices and then crashes during startup, which is what happened in 1.3.0.
 
 Override via environment variables:
