@@ -5,6 +5,25 @@ All notable changes to SimpleDay will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-08-01
+
+### Fixed
+- The universal APK attached to the GitHub releases crashed on startup on x86_64
+  devices and emulators, right after the splash screen. Since 1.2.2 the release
+  build is split per ABI, and the split filter also narrowed the native build to
+  the two arm architectures — but the universal APK still packaged the x86 and
+  x86_64 libraries that ship prebuilt inside the AARs. Those directories held
+  `libhermes.so` and `libreactnative.so` but no `libappmodules.so`, so the app
+  installed and then died in TurboModule init. The build now pins
+  `ndk.abiFilters` to the ABIs it compiles, so packaging can no longer outrun the
+  build, and it refuses to finish if an APK contains an ABI without its compiled
+  libraries. The per-ABI arm APKs — the ones F-Droid builds and ships — were never
+  affected.
+
+### Added
+- An x86_64 APK is built and published alongside the two arm ones, so the app can
+  be run in an emulator.
+
 ## [1.3.0] - 2026-07-31
 
 ### Fixed

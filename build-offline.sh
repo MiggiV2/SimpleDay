@@ -26,8 +26,9 @@ APP_JSON="app.json"
 SUPPORTED_JDKS="17 21"
 
 # ABI splits: one lean APK per architecture instead of one large universal APK.
+# x86_64 is here for emulators (F-Droid reviewers test in one); 32-bit x86 is dead.
 # Override per invocation:  ABIS="arm64-v8a" ./build-offline.sh
-ABIS="${ABIS:-armeabi-v7a arm64-v8a}"
+ABIS="${ABIS:-armeabi-v7a arm64-v8a x86_64}"
 
 # Set to 1 to ALSO emit a universal (all-ABI) APK as a fallback
 INCLUDE_UNIVERSAL="${INCLUDE_UNIVERSAL:-0}"
@@ -96,7 +97,9 @@ npx expo prebuild --platform android
 # build, and the per-ABI versionCode blocks reinstalls as a downgrade. Keep a
 # pristine copy and put it back on exit, however the script ends.
 GRADLE_FILE="android/app/build.gradle"
+PROPS_FILE="android/gradle.properties"
 PRISTINE_GRADLE="$(mktemp)"
+PRISTINE_PROPS="$(mktemp)"
 
 restore_gradle() {
     local status=$?
@@ -104,12 +107,16 @@ restore_gradle() {
         cp "$PRISTINE_GRADLE" "$REPO_ROOT/$GRADLE_FILE"
         echo -e "${BLUE}↩️  Restored pristine $GRADLE_FILE${NC}"
     fi
-    rm -f "$PRISTINE_GRADLE"
+    if [ -s "$PRISTINE_PROPS" ]; then
+        cp "$PRISTINE_PROPS" "$REPO_ROOT/$PROPS_FILE"
+    fi
+    rm -f "$PRISTINE_GRADLE" "$PRISTINE_PROPS"
     return $status
 }
 trap restore_gradle EXIT
 
 cp "$GRADLE_FILE" "$PRISTINE_GRADLE"
+cp "$PROPS_FILE" "$PRISTINE_PROPS"
 
 # Inject release signing into the freshly generated build.gradle.
 # prebuild always regenerates this file with debug signing, so we patch it every build.
@@ -135,11 +142,34 @@ fi
 # so we add one. `universalApk` is toggled by INCLUDE_UNIVERSAL.
 echo -e "${BLUE}🔀 Injecting ABI splits ($ABIS, universal=$INCLUDE_UNIVERSAL)...${NC}"
 SPLIT_INCLUDE=$(printf '"%s", ' $ABIS | sed 's/, $//')
+ABI_FILTERS=$(printf '"%s", ' $ABIS | sed 's/, $//')
 UNIVERSAL_FLAG=$([ "$INCLUDE_UNIVERSAL" = "1" ] && echo true || echo false)
 
 perl -0777 -i -pe '
 s{(\n\s*android\s*\{\n)}{$1    splits {\n        abi {\n            enable true\n            reset()\n            include '"$SPLIT_INCLUDE"'\n            universalApk '"$UNIVERSAL_FLAG"'\n        }\n    }\n}s;
 ' "$GRADLE_FILE"
+
+# `splits.abi.include` only narrows the *per-ABI* outputs and the CMake build. The
+# universal APK still swallows every prebuilt .so the AARs contribute, so leaving
+# it at that produces x86/x86_64 directories that hold libhermes.so and friends but
+# none of the locally compiled libappmodules.so / codegen libraries — an APK that
+# installs on those devices and dies during TurboModule init (shipped as 1.3.0).
+# abiFilters applies to every output, so packaging can no longer outrun the build.
+cat >> "$GRADLE_FILE" <<GRADLE
+
+// Package exactly the ABIs we compile — see the universal-APK trap above.
+android {
+    defaultConfig {
+        ndk {
+            abiFilters.clear()
+            abiFilters.addAll([$ABI_FILTERS])
+        }
+    }
+}
+GRADLE
+
+# Keep the native build in sync with the same list (prebuild writes all four).
+sed -i -E "s/^reactNativeArchitectures=.*/reactNativeArchitectures=$(echo $ABIS | tr ' ' ',')/" "$PROPS_FILE"
 
 # Give each split a distinct, monotonic versionCode (base*FACTOR + abiCode),
 # matching the F-Droid recipe so sideload updates and store entries stay in sync.
@@ -201,6 +231,7 @@ BASE_VC=$(grep -oE '"versionCode"[[:space:]]*:[[:space:]]*[0-9]+' "../$APP_JSON"
 
 echo -e "${GREEN}✅ Build successful! ${#APKS[@]} APK(s) → $OUT_DIR${NC}"
 DEBUG_SIGNED=0
+INCOMPLETE_ABI=0
 for APK_PATH in "${APKS[@]}"; do
     APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
     BASENAME=$(basename "$APK_PATH")
@@ -218,6 +249,23 @@ for APK_PATH in "${APKS[@]}"; do
     cp "$APK_PATH" "$OUT_DIR/$DEST"
     echo -e "${GREEN}📱 $DEST  (${APK_SIZE})${NC}"
 
+    # Verify every packaged ABI is complete. `libappmodules.so` is compiled from
+    # the app's own codegen output, so it exists only for ABIs that were really
+    # built — an ABI directory without it means the APK installs there and then
+    # crashes in TurboModule init.
+    if command -v unzip >/dev/null 2>&1; then
+        PACKAGED_ABIS=$(unzip -Z1 "$APK_PATH" 'lib/*' 2>/dev/null | cut -d/ -f2 | sort -u)
+        for PACKAGED in $PACKAGED_ABIS; do
+            if ! unzip -Z1 "$APK_PATH" "lib/$PACKAGED/libappmodules.so" >/dev/null 2>&1; then
+                echo -e "${RED}   ❌ lib/$PACKAGED has no libappmodules.so — would crash on $PACKAGED.${NC}"
+                INCOMPLETE_ABI=1
+            fi
+        done
+        echo -e "${GREEN}   🧩 ABIs: $(echo $PACKAGED_ABIS | tr '\n' ' ')${NC}"
+    else
+        echo -e "${YELLOW}   ⚠️  unzip not found — skipped the ABI completeness check.${NC}"
+    fi
+
     # Verify each APK is NOT signed with the Android debug key
     CERTS=$(keytool -printcert -jarfile "$APK_PATH" 2>/dev/null)
     if [ -z "$CERTS" ]; then
@@ -232,6 +280,11 @@ done
 
 if [ "$DEBUG_SIGNED" = "1" ]; then
     echo -e "${RED}❌ One or more APKs are debug-signed. Aborting.${NC}"
+    exit 1
+fi
+
+if [ "$INCOMPLETE_ABI" = "1" ]; then
+    echo -e "${RED}❌ One or more APKs package an ABI they did not build. Aborting.${NC}"
     exit 1
 fi
 

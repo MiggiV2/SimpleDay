@@ -65,7 +65,9 @@ SimpleDay ships to [IzzyOnDroid](https://apt.izzysoft.de/fdroid/) (an F-Droid-co
 
 The script runs `expo prebuild`, injects the release signing config and ABI splits into the generated Gradle project, writes `android/local.properties`, then runs `gradlew assembleRelease`. Those injections are undone again when the script exits, so the generated project stays usable for `npx expo run:android`.
 
-One lean APK per architecture is produced (`armeabi-v7a` and `arm64-v8a` by default) and copied to the repo root as `simpleday-<versionCode>-<arch>-release.apk`. Each split gets its own `versionCode` (`base * 1000 + arch code`, with `armeabi-v7a=1`, `arm64-v8a=2`, `x86_64=3`, `x86=4`) so it matches the F-Droid recipe's `VercodeOperation` and sideload updates line up.
+One lean APK per architecture is produced (`armeabi-v7a`, `arm64-v8a` and `x86_64` by default) and copied to the repo root as `simpleday-<versionCode>-<arch>-release.apk`. Each split gets its own `versionCode` (`base * 1000 + arch code`, with `armeabi-v7a=1`, `arm64-v8a=2`, `x86_64=3`, `x86=4`) so it matches the F-Droid recipe's `VercodeOperation` and sideload updates line up.
+
+Packaging is pinned to the ABIs that are actually compiled (`ndk.abiFilters`), and every produced APK is checked for a `libappmodules.so` in each `lib/<abi>/` it ships. Without that, a universal APK silently picks up the prebuilt x86 libraries that ship inside the AARs while the app's own compiled libraries are missing — it installs on those devices and then crashes during startup, which is what happened in 1.3.0.
 
 Override via environment variables:
 

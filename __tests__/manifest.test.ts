@@ -95,7 +95,7 @@ describe('android manifest configuration', () => {
     // The recipe splits per ABI via `VercodeOperation: 1000 * %c + N`, so
     // fdroidserver looks for `<base * 1000 + N>.txt`, not `<base>.txt`.
     const dir = path.join(__dirname, '..', 'fastlane/metadata/android/en-US/changelogs');
-    for (const abiCode of [1, 2]) {
+    for (const abiCode of [1, 2, 3]) {
       expect(fs.existsSync(path.join(dir, `${android.versionCode * 1000 + abiCode}.txt`))).toBe(
         true
       );
