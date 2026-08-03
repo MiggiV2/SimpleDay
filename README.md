@@ -7,6 +7,12 @@
   <img src="https://img.shields.io/badge/Markdown-000000?style=for-the-badge&logo=markdown&logoColor=white" alt="Markdown">
 </p>
 
+<p align="center">
+  <a href="https://f-droid.org/packages/de.mymiggi.simpleday/">
+    <img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="80">
+  </a>
+</p>
+
 A minimalistic diary app with Markdown support and WebDAV cloud sync.
 
 ### Key Features
@@ -57,7 +63,7 @@ npm start
 
 ## Building a Release APK
 
-SimpleDay ships to [IzzyOnDroid](https://apt.izzysoft.de/fdroid/) (an F-Droid-compatible repo), so release APKs must be reproducible, signed with the real release key, and buildable without any cloud service. Release builds are produced **locally and offline** with `./build-offline.sh` — no EAS or other cloud build service needed.
+SimpleDay ships to [F-Droid](https://f-droid.org/packages/de.mymiggi.simpleday/) and [IzzyOnDroid](https://apt.izzysoft.de/fdroid/), so release APKs must be reproducible, signed with the real release key, and buildable without any cloud service. Release builds are produced **locally and offline** with `./build-offline.sh` — no EAS or other cloud build service needed.
 
 ```bash
 ./build-offline.sh
