@@ -228,16 +228,26 @@ class DiaryService {
    * same date, the extra ones carrying the `-2` suffix `freeFilename` hands out.
    * Those stay readable as separate entries; this picks the unsuffixed one so the
    * day keeps reopening whichever file was written first.
+   *
+   * The date lives in the filename, so the candidate is picked from the
+   * directory listing and exactly one file is opened. Going through `list()`
+   * instead would read every entry ever written, and the "+" button waits for
+   * this: on a diary of a few hundred days that was the delay users noticed.
    */
   async findByDate(date: string): Promise<DiaryEntryMeta | null> {
-    const sameDay = (await this.list()).filter(entry => entry.date === date);
+    const diaryDir = await this.dir();
+    const sameDay = (await this.markdownFiles(diaryDir)).filter(name => dateFromFilename(name) === date);
     if (sameDay.length === 0) return null;
 
-    return sameDay.sort((a, b) => {
-      const bySuffix = Number(hasDuplicateSuffix(a.filename)) - Number(hasDuplicateSuffix(b.filename));
+    const filename = sameDay.sort((a, b) => {
+      const bySuffix = Number(hasDuplicateSuffix(a)) - Number(hasDuplicateSuffix(b));
       if (bySuffix !== 0) return bySuffix;
-      return a.filename < b.filename ? -1 : 1;
+      return a < b ? -1 : 1;
     })[0];
+
+    const { title, body } = parseDocument((await new File(diaryDir, filename).text()) ?? '');
+
+    return { filename, date, title: title ?? titleFromFilename(filename), preview: toPreview(body) };
   }
 
   async remove(filename: string): Promise<void> {

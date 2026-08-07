@@ -4,6 +4,8 @@
 export function createFakeFileSystem() {
   const files = new Map<string, string>();
   const dirs = new Set<string>();
+  /** Every `File.text()` call, so tests can assert how much a lookup reads. */
+  const reads: string[] = [];
 
   class Directory {
     uri: string;
@@ -45,6 +47,7 @@ export function createFakeFileSystem() {
       if (!files.has(this.uri)) {
         throw new Error(`File not found: ${this.uri}`);
       }
+      reads.push(this.name);
       return files.get(this.uri);
     }
 
@@ -57,5 +60,12 @@ export function createFakeFileSystem() {
     }
   }
 
-  return { Paths: { document: 'file:///doc' }, Directory, File, __files: files, __dirs: dirs };
+  return {
+    Paths: { document: 'file:///doc' },
+    Directory,
+    File,
+    __files: files,
+    __dirs: dirs,
+    __reads: reads,
+  };
 }

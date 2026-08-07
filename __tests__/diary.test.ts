@@ -7,6 +7,7 @@ const DIARY_DIR = 'file:///doc/diary';
 
 let files: Map<string, string>;
 let dirs: Set<string>;
+let reads: string[];
 
 /** Writes a file the way an older app version would have written it. */
 function seedLegacy(filename: string, content: string) {
@@ -22,8 +23,10 @@ beforeEach(() => {
   const fs = require('expo-file-system');
   files = fs.__files;
   dirs = fs.__dirs;
+  reads = fs.__reads;
   files.clear();
   dirs.clear();
+  reads.length = 0;
 });
 
 describe('diary: reading legacy entries', () => {
@@ -236,6 +239,30 @@ describe('diary: one entry per day', () => {
     const existing = await diary.findByDate('2026-07-30');
 
     expect(existing?.filename).toBe('2026-07-30_First.md');
+  });
+
+  it('opens only the entry it found, not every file in the diary', async () => {
+    // The "+" button waits for this lookup, so its cost has to stay flat as the
+    // diary grows. Filenames carry the date; reading the contents of days that
+    // cannot match is what made the button take hundreds of milliseconds.
+    for (let day = 1; day <= 40; day++) {
+      seedLegacy(`2026-06-${String(day % 30 + 1).padStart(2, '0')}_Entry-${day}.md`, 'x');
+    }
+    seedLegacy('2026-07-30_Today.md', 'written earlier');
+    reads.length = 0;
+
+    await diary.findByDate('2026-07-30');
+
+    expect(reads).toEqual(['2026-07-30_Today.md']);
+  });
+
+  it('reads nothing at all when the date has no entry', async () => {
+    seedLegacy('2026-07-29_Yesterday.md', 'a');
+    reads.length = 0;
+
+    await diary.findByDate('2026-07-30');
+
+    expect(reads).toEqual([]);
   });
 
   it('prefers the original over the -2 duplicate an older version created', async () => {
