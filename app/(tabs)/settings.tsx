@@ -16,6 +16,7 @@ import { Toggle } from '../../components/Toggle';
 import { Input } from '../../components/Input';
 import { Button } from '../../components/Button';
 import { EncryptionKeyManager } from '../../components/EncryptionKeyManager';
+import { APP_VERSION } from '../../constants/version';
 
 interface WebDAVConfig {
   url: string;
@@ -520,7 +521,7 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>About</Text>
-          <Text style={styles.aboutText}>SimpleDay v1.1.0</Text>
+          <Text style={styles.aboutText}>SimpleDay v{APP_VERSION}</Text>
           <Text style={styles.aboutText}>A minimalistic diary app with Markdown support</Text>
         </View>
       </ScrollView>
