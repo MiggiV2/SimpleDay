@@ -7,7 +7,7 @@ import { storage } from '../../services/storage';
 import { crypto } from '../../services/crypto';
 import { isCleartextUrl, describeConnectionFailure } from '../../services/webdav';
 import { notificationService } from '../../services/notifications';
-import { appLock } from '../../services/appLock';
+import { appLock, describeLockDelay, LOCK_DELAY_OPTIONS } from '../../services/appLock';
 import { diary } from '../../services/diary';
 import Toast from 'react-native-toast-message';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -44,6 +44,7 @@ export default function SettingsScreen() {
 
   // App lock settings
   const [appLockEnabled, setAppLockEnabled] = useState(false);
+  const [lockDelayMs, setLockDelayMs] = useState(LOCK_DELAY_OPTIONS[2]);
 
   useEffect(() => {
     loadSettings();
@@ -126,6 +127,7 @@ export default function SettingsScreen() {
 
       // Load app lock setting
       setAppLockEnabled(await appLock.isEnabled());
+      setLockDelayMs(await appLock.getLockDelayMs());
 
       // Load notification settings
       const notifSettings = await notificationService.loadSettings();
@@ -255,6 +257,11 @@ export default function SettingsScreen() {
     });
   };
 
+  const handleLockDelayChange = async (delayMs: number) => {
+    setLockDelayMs(delayMs);
+    await appLock.setLockDelayMs(delayMs);
+  };
+
   const formatSyncTime = (timestamp: string | null) => {
     if (!timestamp) return 'Never';
     const date = new Date(timestamp);
@@ -338,6 +345,33 @@ export default function SettingsScreen() {
             value={appLockEnabled}
             onToggle={handleAppLockToggle}
           />
+
+          {appLockEnabled && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Lock After</Text>
+              <Text style={styles.helperText}>
+                How long you can use another app before SimpleDay asks again
+              </Text>
+              <View style={styles.choiceRow}>
+                {LOCK_DELAY_OPTIONS.map(option => (
+                  <TouchableOpacity
+                    key={option}
+                    style={[styles.choice, option === lockDelayMs && styles.choiceSelected]}
+                    onPress={() => handleLockDelayChange(option)}
+                  >
+                    <Text
+                      style={[
+                        styles.choiceText,
+                        option === lockDelayMs && styles.choiceTextSelected,
+                      ]}
+                    >
+                      {describeLockDelay(option)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -531,6 +565,37 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#333',
     marginBottom: 8,
+  },
+  helperText: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 8,
+    lineHeight: 18,
+  },
+  choiceRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  choice: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    backgroundColor: '#f5f5f5',
+  },
+  choiceSelected: {
+    borderColor: '#007AFF',
+    backgroundColor: '#007AFF',
+  },
+  choiceText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  choiceTextSelected: {
+    color: '#fff',
   },
   verifyButton: {
     marginBottom: 16,

@@ -186,6 +186,7 @@ SimpleDay supports standard Markdown:
   > the WebDAV username and password travel in a Basic auth header that anyone on
   > the same network can read. Prefer `https://`.
 - **App Lock** - optional biometric/PIN gate (Face ID, fingerprint, or device passcode via `expo-local-authentication`) that locks the app on cold start and whenever it's backgrounded
+  - **Lock After** - how long you may use another app before authentication is required again: immediately, 1, 5 (default), or 15 minutes. The lock screen still covers the app the moment it is backgrounded, so nothing is readable in the task switcher; within the chosen window, coming back skips the prompt. An entry you were writing stays open and unsaved text is never discarded by the lock.
   > Note: App Lock only gates the UI — it does **not** encrypt your diary entries at rest. For encryption, enable WebDAV backup encryption above.
 - **No tracking** - zero analytics or data collection
 - **Open source** - audit the code yourself

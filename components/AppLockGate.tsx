@@ -14,6 +14,7 @@ export function AppLockGate({ children }: AppLockGateProps) {
   const [authFailed, setAuthFailed] = useState(false);
   const authInProgress = useRef(false);
   const lockedRef = useRef<boolean | null>(null);
+  const backgroundedAt = useRef<number | null>(null);
   lockedRef.current = locked;
 
   const tryUnlock = useCallback(async () => {
@@ -23,6 +24,7 @@ export function AppLockGate({ children }: AppLockGateProps) {
     try {
       const success = await appLock.authenticate();
       if (success) {
+        backgroundedAt.current = null;
         setLocked(false);
       } else {
         setAuthFailed(true);
@@ -54,41 +56,63 @@ export function AppLockGate({ children }: AppLockGateProps) {
         if (authInProgress.current) return;
         const enabled = await appLock.isEnabled();
         if (enabled) {
+          // Cover the app right away so the entry is not readable in the task
+          // switcher; whether coming back costs a prompt is decided on resume.
+          backgroundedAt.current = Date.now();
           setLocked(true);
         }
       } else if (nextState === 'active') {
-        if (lockedRef.current === true) {
-          tryUnlock();
+        if (lockedRef.current !== true) return;
+
+        const since = backgroundedAt.current;
+        if (since !== null && !(await appLock.shouldLock(since, Date.now()))) {
+          backgroundedAt.current = null;
+          setLocked(false);
+          return;
         }
+        tryUnlock();
       }
     });
     return () => subscription.remove();
   }, [tryUnlock]);
 
-  if (locked === null) {
-    return <View style={styles.lockScreen} />;
-  }
-
-  if (locked) {
-    return (
-      <View style={styles.lockScreen}>
-        <Ionicons name="lock-closed" size={64} color="#007AFF" />
-        <Text style={styles.title}>SimpleDay is locked</Text>
-        <Text style={styles.subtitle}>Authenticate to access your diary</Text>
-        {authFailed && (
-          <TouchableOpacity style={styles.unlockButton} onPress={tryUnlock}>
-            <Ionicons name="finger-print" size={20} color="#fff" />
-            <Text style={styles.unlockButtonText}>Unlock</Text>
-          </TouchableOpacity>
-        )}
+  // The screens stay mounted behind the lock. Unmounting them would throw away
+  // whatever the user had typed but not saved yet, which is exactly what a trip
+  // to another app used to cost.
+  return (
+    <View style={styles.container}>
+      <View style={styles.content} pointerEvents={locked === false ? 'auto' : 'none'}>
+        {children}
       </View>
-    );
-  }
 
-  return <>{children}</>;
+      {locked !== false && (
+        <View style={[StyleSheet.absoluteFill, styles.lockScreen]}>
+          {locked === true && (
+            <>
+              <Ionicons name="lock-closed" size={64} color="#007AFF" />
+              <Text style={styles.title}>SimpleDay is locked</Text>
+              <Text style={styles.subtitle}>Authenticate to access your diary</Text>
+              {authFailed && (
+                <TouchableOpacity style={styles.unlockButton} onPress={tryUnlock}>
+                  <Ionicons name="finger-print" size={20} color="#fff" />
+                  <Text style={styles.unlockButtonText}>Unlock</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+        </View>
+      )}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+  },
   lockScreen: {
     flex: 1,
     backgroundColor: '#f5f5f5',
