@@ -2,7 +2,7 @@
   "expo": {
     "name": "SimpleDay",
     "slug": "simpleday",
-    "version": "1.3.1",
+    "version": "1.4.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -13,7 +13,7 @@
       "bundleIdentifier": "de.mymiggi.simpleday"
     },
     "android": {
-      "versionCode": 7,
+      "versionCode": 8,
       "jsEngine": "hermes",
       "blockedPermissions": [
         "android.permission.SYSTEM_ALERT_WINDOW",

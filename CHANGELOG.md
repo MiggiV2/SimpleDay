@@ -5,6 +5,27 @@ All notable changes to SimpleDay will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-08-07
+
+### Fixed
+- With App Lock enabled, leaving the app for a moment (looking a date up in the
+  calendar, copying text from another app) required authenticating again and, worse,
+  discarded whatever had been typed into an entry but not saved yet, because the
+  screens were unmounted while the lock was up. The lock screen still covers the app
+  the instant it goes to the background, so nothing is readable in the task switcher,
+  but coming back within the configured window no longer prompts, and the screens stay
+  mounted underneath so unsaved text survives. (#2)
+
+### Added
+- **Lock After** setting: how long App Lock tolerates another app before asking again.
+  Immediately, 1, 5 (default) or 15 minutes.
+
+### Changed
+- Opening today's entry from the `+` button or the daily reminder no longer reads and
+  parses every file in the diary. The date is in the filename, so the day's entry is
+  picked from the directory listing and only that one file is opened. On a diary of a
+  few hundred days the button was taking hundreds of milliseconds. (#3)
+
 ## [1.3.1] - 2026-08-01
 
 ### Fixed
